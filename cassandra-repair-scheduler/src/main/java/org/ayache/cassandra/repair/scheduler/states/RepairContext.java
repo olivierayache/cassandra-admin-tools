@@ -52,7 +52,7 @@ public class RepairContext {
         }
         
     };
-    public final Map<String, NodeConnector> map = new HashMap<>();
+    public final transient Map<String, NodeConnector> map = new HashMap<>();
     volatile NodeReparator.Status status = Status.STARTED;
     private final String clusterName;
     final int jmxPort;

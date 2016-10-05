@@ -177,7 +177,7 @@ public class NodeConnector {
         Map<String, NodeDto> nodes = new HashMap<>();
         Map<String, String> loadMap = ssProxy.getLoadMap();
         for (Map.Entry<String, String> entry : loadMap.entrySet()) {
-            nodes.put(entry.getKey(), new NodeDto(entry.getKey(), entry.getValue(), esProxy.getDatacenter(entry.getKey())));
+            nodes.put(entry.getKey(), NodeDto.NodeDtoBuilder.build(entry.getKey(), entry.getValue(), esProxy.getDatacenter(entry.getKey())));
         }
 
         return nodes;

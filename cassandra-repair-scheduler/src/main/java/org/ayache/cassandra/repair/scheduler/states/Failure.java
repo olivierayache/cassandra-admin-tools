@@ -63,7 +63,7 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
                             p.checkJMXConnections();
                             ok = true;
                         } catch (Exception ex) {
-                            Logger.getLogger(Failure.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 10 seconds", ex.getMessage());
+                            Logger.getLogger(Failure.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 10 seconds", ex);
                         }
                     }
                     break;

@@ -8,8 +8,8 @@ package org.ayache.cassandra.admin.api.dto;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
-import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsOverlay;
+import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
 
 /**
@@ -18,20 +18,25 @@ import jsinterop.annotations.JsType;
  */
 @XmlRootElement()
 @XmlAccessorType(XmlAccessType.FIELD)
-@JsType(isNative = true, namespace = "", name = "Object")
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class NodeDto {
 
-    private final String name;
-    private final String load;
-    private final String dc;
+    private String name;
+    private String load;
+    private String dc;
     private boolean repairInProgress;
     private boolean repairInError;
 
-    @JsIgnore
-    public NodeDto(String name, String load, String dc) {
-        this.name = name;
-        this.load = load;
-        this.dc = dc;
+   public static class NodeDtoBuilder {
+
+        public static NodeDto build(String name, String load, String dc) {
+            NodeDto node = new NodeDto();
+            node.name = name;
+            node.load = load;
+            node.dc = dc;
+            return node;
+        }
+
     }
 
     @JsOverlay

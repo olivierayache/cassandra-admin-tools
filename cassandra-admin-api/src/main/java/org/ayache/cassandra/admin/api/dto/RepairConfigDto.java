@@ -8,6 +8,8 @@ package org.ayache.cassandra.admin.api.dto;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
+import jsinterop.annotations.JsOverlay;
+import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
 
 /**
@@ -16,7 +18,7 @@ import jsinterop.annotations.JsType;
  */
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.FIELD)
-@JsType(isNative = true, namespace = "", name = "Object")
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class RepairConfigDto {
 
     public int hourToBegin;
@@ -42,7 +44,8 @@ public class RepairConfigDto {
     }
 
     @Override
-    public int hashCode() {
+    @JsOverlay
+    public final int hashCode() {
         int hash = 7;
         hash = 83 * hash + this.hourToBegin;
         hash = 83 * hash + this.minutesToBegin;
@@ -54,7 +57,8 @@ public class RepairConfigDto {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    @JsOverlay
+    public final boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
@@ -87,9 +91,9 @@ public class RepairConfigDto {
     }
 
     @Override
-    public String toString() {
+    @JsOverlay
+    public final String toString() {
         return "RepairConfigDto{" + "hourToBegin=" + hourToBegin + ", minutesToBegin=" + minutesToBegin + ", lastHourToBegin=" + lastHourToBegin + ", lastMinutesToBegin=" + lastMinutesToBegin + ", simultaneousRepair=" + simultaneousRepair + ", repairLocalDCOnly=" + repairLocalDCOnly + '}';
     }
-
 
 }
