@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -82,8 +83,8 @@ public class NodeReparator {
         private final RepairContext repairContext;
         private int cmd;
         private volatile boolean success = true;
-//        private volatile boolean cancelled = true;
-        private volatile Exception error = null;
+        private volatile String errorMessage;
+        private volatile boolean finished;
 
         RepairRunner(RepairContext repairContext, PrintStream out, String keyspace, String... columnFamilies) {
             this.out = out;
@@ -104,22 +105,27 @@ public class NodeReparator {
             return success;
         }
 
-        private void waitForRepair() throws Exception {
+        private void waitForRepair() {
             if (cmd > 0) {
                 try {
-                    condition.await();
+                    if (!condition.await(8, TimeUnit.HOURS)){ // prevents from waiting indefinitly
+                        ssProxy.forceTerminateAllRepairSessions();
+                        repairContext.error(host, Status.JMX_UNKWOWN, "Repair duration exceeds 8 hours").activate(RepairTransition.REPAIR_FAILED);
+                    }    
                 } catch (InterruptedException exception) {
                     ssProxy.forceTerminateAllRepairSessions();
                     repairContext.addMessage("Waiting for repair cancelled").activate(RepairTransition.CANCEL);
-                    throw new IOException(exception);
+                }
+                if (errorMessage != null) {
+                    repairContext.error(host, Status.JMX_UNKWOWN, errorMessage).activate(RepairTransition.REPAIR_FAILED);
+                }
+                if (!finished && success) {
+                    repairContext.error(host, Status.JMX_UNKWOWN, "Unbelievable, it seems that a spurious wake up occurs!!!").activate(RepairTransition.REPAIR_FAILED);
                 }
             } else {
                 String message = String.format("[%s] Nothing to repair for keyspace '%s'", format.format(System.currentTimeMillis()), keyspace);
                 out.println(message);
                 repairContext.addMessage(message);
-            }
-            if (error != null) {
-                throw error;
             }
         }
 
@@ -139,6 +145,8 @@ public class NodeReparator {
                         condition.signalAll();
                         if (!success) {
                             repairContext.activate(RepairTransition.REPAIR_FAILED);
+                        } else {
+                            finished = true;
                         }
                     }
                 }
@@ -147,16 +155,17 @@ public class NodeReparator {
                         format.format(notification.getTimeStamp()),
                         keyspace);
                 out.println(message);
-                repairContext.addMessage(message);
                 success = false;
+                this.errorMessage = message;
                 condition.signalAll();
-                repairContext.error(host, Status.JMX_UNKWOWN, message).activate(RepairTransition.REPAIR_FAILED);
             } else if (JMXConnectionNotification.FAILED.equals(notification.getType())
                     || JMXConnectionNotification.CLOSED.equals(notification.getType())) {
                 String message = String.format("JMX connection closed. You should check server log for repair status of keyspace %s"
                         + "(Subsequent keyspaces are not going to be repaired).",
                         keyspace);
-                error = new IOException(message);
+                out.println(message);
+                success = false;
+                this.errorMessage = message;
                 condition.signalAll();
             }
         }

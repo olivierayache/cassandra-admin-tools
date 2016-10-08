@@ -47,7 +47,7 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
                 }
             } catch (Exception ex) {
                 Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
-                context.error(nodeToRepair, NodeReparator.Status.JMX_UNKWOWN).activate(RepairTransition.REPAIR_FAILED);
+                context.error(nodeToRepair, NodeReparator.Status.JMX_UNKWOWN, ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
             }
         }
         if (!context.getNodesToRepairInUnknown().isEmpty()){
