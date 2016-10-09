@@ -108,20 +108,22 @@ public class NodeReparator {
         private void waitForRepair() {
             if (cmd > 0) {
                 try {
-                    if (!condition.await(8, TimeUnit.HOURS)){ // prevents from waiting indefinitly
+                    if (!condition.await(8, TimeUnit.HOURS)) { // prevents from waiting indefinitly
                         ssProxy.forceTerminateAllRepairSessions();
                         repairContext.error(host, Status.JMX_UNKWOWN, "Repair duration exceeds 8 hours").activate(RepairTransition.REPAIR_FAILED);
-                    }    
+                    } else {
+                        if (errorMessage != null) {
+                            repairContext.error(host, Status.JMX_UNKWOWN, errorMessage).activate(RepairTransition.REPAIR_FAILED);
+                        }
+                        if (!finished && success) {
+                            repairContext.error(host, Status.JMX_UNKWOWN, "Unbelievable, it seems that a spurious wake up occurs!!!").activate(RepairTransition.REPAIR_FAILED);
+                        }
+                    }
                 } catch (InterruptedException exception) {
                     ssProxy.forceTerminateAllRepairSessions();
                     repairContext.addMessage("Waiting for repair cancelled").activate(RepairTransition.CANCEL);
                 }
-                if (errorMessage != null) {
-                    repairContext.error(host, Status.JMX_UNKWOWN, errorMessage).activate(RepairTransition.REPAIR_FAILED);
-                }
-                if (!finished && success) {
-                    repairContext.error(host, Status.JMX_UNKWOWN, "Unbelievable, it seems that a spurious wake up occurs!!!").activate(RepairTransition.REPAIR_FAILED);
-                }
+
             } else {
                 String message = String.format("[%s] Nothing to repair for keyspace '%s'", format.format(System.currentTimeMillis()), keyspace);
                 out.println(message);
