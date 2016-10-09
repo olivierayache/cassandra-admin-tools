@@ -42,15 +42,16 @@ public class RepairContext {
     private final Set<String> nodesToRepairInUnknown = new ConcurrentSkipListSet<>();
     private final Map<String, ErrorInfoAggregator> nodesToRepairInFailure = new ConcurrentHashMap<>();
     private final transient RepairAutomaton automaton = new RepairAutomaton();
-    private final List<String> messages = new LinkedList<String>(){
-        @Override
-        public boolean add(String e) {
-            if (size() > 200){
+    private final SizedLinkedList<String> messages = new SizedLinkedList();              
+    private static final class SizedLinkedList<T> extends LinkedList<T> {
+
+        public boolean add(T e) {
+            if (size() > 200) {
                 poll();
             }
             return super.add(e);
         }
-        
+
     };
     public final transient Map<String, NodeConnector> map = new HashMap<>();
     volatile NodeReparator.Status status = Status.STARTED;

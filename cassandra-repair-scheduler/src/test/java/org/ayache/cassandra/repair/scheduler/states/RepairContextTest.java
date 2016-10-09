@@ -15,6 +15,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
@@ -55,6 +57,7 @@ public class RepairContextTest {
 
     /**
      * Test of initNodesToRepair method, of class RepairContext.
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -229,20 +232,20 @@ public class RepairContextTest {
 //        fail("The test case is a prototype.");
 //    }
 //
-//    /**
-//     * Test of addMessage method, of class RepairContext.
-//     */
-//    @Test
-//    public void testAddMessage() {
-//        System.out.println("addMessage");
-//        String message = "";
-//        RepairContext instance = null;
-//        RepairContext expResult = null;
-//        RepairContext result = instance.addMessage(message);
-//        assertEquals(expResult, result);
-//        // TODO review the generated test code and remove the default call to fail.
-//        fail("The test case is a prototype.");
-//    }
+
+    /**
+     * Test of addMessage method, of class RepairContext.
+     */
+    @Test
+    public void testAddMessage() {
+        System.out.println("addMessage");
+        String message = "Test";
+        RepairContext instance = new RepairContext("Test", 0, 0, 0);
+        for (int j = 0; j < 10000; j++) {
+            instance.addMessage(message + j);
+        }
+        assertEquals(201, instance.getMessages().size());
+    }
 //
 //    /**
 //     * Test of addStatus method, of class RepairContext.
