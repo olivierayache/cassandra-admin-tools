@@ -63,8 +63,8 @@ public class RepairService implements IRepairService {
     public Collection<NodeDto> describe() {
         try {
 
-            final RepairContext context = ClusterServiceFactory.getInstance().getRepairContext(clusterName);
-            Map<String, NodeDto> nodes = context.getNodes();
+            RepairContext context = ClusterServiceFactory.getInstance().getRepairContext(clusterName);
+            Map<String, NodeDto> nodes = ClusterServiceFactory.getInstance().getNodes(clusterName);
 
             for (String host : context.getNodesToRepairInUnknown()) {
                 nodes.get(host).setRepairInError(true);

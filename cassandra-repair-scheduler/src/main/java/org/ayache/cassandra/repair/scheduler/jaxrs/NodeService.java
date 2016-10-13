@@ -33,7 +33,7 @@ public class NodeService implements INodeService{
     public Collection<NodeDto> describe() {
         try {
             
-            return CLUSTER_SERVICE_FACTORY.getNodes(clusterName);
+            return CLUSTER_SERVICE_FACTORY.getNodes(clusterName).values();
         } catch (IOException ex) {
             Logger.getLogger(NodeService.class.getName()).log(Level.SEVERE, null, ex);
             throw new ServerErrorException(Response.serverError().build(), ex);

@@ -37,6 +37,8 @@ public class NodeChooser {
      *
      * @param serviceMBean
      * @param esMBean
+     * @param dc
+     * @param lastRepairedNode
      * @throws java.io.IOException
      */
     public NodeChooser(StorageServiceMBean serviceMBean, EndpointSnitchInfoMBean esMBean, String dc, String lastRepairedNode) throws IOException {
@@ -96,7 +98,8 @@ public class NodeChooser {
         boolean found = false;
         Logger.getLogger(NodeChooser.class.getName()).info("Last Repaired Node :" + lastRepairedNode);
         Set<String> result = new HashSet<>();
-        for (String node : getNodesFromDC()) {
+        Collection<String> nodesFromDC = getNodesFromDC();
+        for (String node : nodesFromDC) {
             if (found) {
                 if (!serviceMBean.getUnreachableNodes().contains(node)) {
                     result.add(node);
@@ -117,7 +120,7 @@ public class NodeChooser {
         }
 
         if (found && result.isEmpty()) {
-            for (String node : getNodesFromDC()) {
+            for (String node : nodesFromDC) {
                 if (!serviceMBean.getUnreachableNodes().contains(node)) {
                     result.add(node);
                     break;
@@ -130,7 +133,7 @@ public class NodeChooser {
 
         //First start lastRepairNode not initialized
         if (!found) {
-            String next = getNodesFromDC().iterator().next();
+            String next = nodesFromDC.iterator().next();
             if (!serviceMBean.getUnreachableNodes().contains(next)) {
                 result.add(next);
             } else {
@@ -142,17 +145,17 @@ public class NodeChooser {
         if (supportSimultaneousRepair && !result.isEmpty()) {
             //TODO: optimiser de facon a lancer simultanement les noeuds diametralement opposés
             //int remainingToNext = 2*replicates;
-            int remainingToNext = getNodesFromDC().size() / 2;
+            int remainingToNext = nodesFromDC.size() / 2;
             String firstNodeToRepair = result.iterator().next();
             int index = 0;
-            for (String node : getNodesFromDC()) {
+            for (String node : nodesFromDC) {
                 if (node.equals(firstNodeToRepair)) {
                     break;
                 }
                 index++;
             }
-            int total = getNodesFromDC().size();
-            String[] nodeArray = getNodesFromDC().toArray(new String[0]);
+            int total = nodesFromDC.size();
+            String[] nodeArray = nodesFromDC.toArray(new String[0]);
             if (index + remainingToNext < total) {
                 result.add(nodeArray[index + remainingToNext]);
             } else {

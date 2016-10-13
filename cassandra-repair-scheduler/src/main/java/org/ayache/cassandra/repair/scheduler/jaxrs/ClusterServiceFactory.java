@@ -76,8 +76,8 @@ public class ClusterServiceFactory {
         return clusters.get(clusterName).getRepairContext();
     }
 
-    public Collection<NodeDto> getNodes(String clusterName) throws IOException {
-        return clusters.get(clusterName).getNodeConnector().getNodes().values();
+    public Map<String, NodeDto> getNodes(String clusterName) throws IOException {
+        return clusters.get(clusterName).getNodeConnector().getNodes();
     }
 
     public NodeConnector getNodeConnector(String clusterName, String hostName) throws IOException {
