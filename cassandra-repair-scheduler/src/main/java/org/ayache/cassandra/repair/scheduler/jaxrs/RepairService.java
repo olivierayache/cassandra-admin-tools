@@ -95,8 +95,6 @@ public class RepairService implements IRepairService {
         repairContext.editConfigurations(config);
         if (!cancelCurrent) {
             repairContext.cancelRepairSessions();
-        } else {
-            repairContext.cancelWaiting();
         }
 
     }

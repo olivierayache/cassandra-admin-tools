@@ -21,7 +21,7 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
  *
  * @author Ayache
  */
-@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"WAKE_UP", "CANCEL"}, init = true)
+@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"WAKE_UP", "CANCEL", "CONFIG_CHANGED"}, init = true)
 public class RepairReschedule extends State<RepairContext, Void, RepairRescheduleInner> {
 
     private static final Calendar CALENDAR = Calendar.getInstance();
@@ -39,14 +39,20 @@ public class RepairReschedule extends State<RepairContext, Void, RepairReschedul
     public void registerNextStates(IStateRetriever retriever) {
         addNextState(retriever.state(Init.class)).whenWAKE_UP().end();
         addNextState(retriever.state(Cancelled.class)).whenCANCEL().end();
+        addNextState(retriever.state(Cancelled.class)).whenCONFIG_CHANGED().end();
+    }
+
+    @Override
+    public boolean shouldExecuteAsync() {
+        return true;
     }
 
     @Override
     public Void execute(RepairContext context) {
-        if (context.cancel) {
-            context.addMessage("Waiting for wake up aborted").activate(RepairTransition.CANCEL);
-            return null;
-        }
+//        if (context.cancel) {
+//            context.addMessage("Waiting for wake up aborted").activate(RepairTransition.CANCEL);
+//            return null;
+//        }
         final ReentrantLock reentrantLock = new ReentrantLock();
         reentrantLock.lock();
         Condition newCondition = reentrantLock.newCondition();
@@ -68,24 +74,18 @@ public class RepairReschedule extends State<RepairContext, Void, RepairReschedul
                     shouldShift = true;
                 }
                 lastTimeInMillis += 24 * 3600 * 1000;
-            }else{
-                if (time > lastTimeInMillis){
-                    startTimeInMillis +=  24 * 3600 * 1000;
-                }
+            } else if (time > lastTimeInMillis) {
+                startTimeInMillis += 24 * 3600 * 1000;
             }
             time += 24 * 3600 * 1000 * (shouldShift ? 1 : 0);
             if (time < lastTimeInMillis && time > startTimeInMillis) {
             } else {
-                while(time < startTimeInMillis && !context.cancel) { //prevent spurious wakeup
+                while (time < startTimeInMillis) { //prevent spurious wakeup
                     newCondition.awaitUntil(new Date(startTimeInMillis));
                     time = System.currentTimeMillis();
                 }
             }
-            if (context.cancel) {
-                context.addMessage("Waiting for wake up cancelled").activate(RepairTransition.CANCEL);
-            } else {
-                context.addStatus(NodeReparator.Status.STARTED).activate(RepairTransition.WAKE_UP);
-            }
+            context.addStatus(NodeReparator.Status.STARTED).activate(RepairTransition.WAKE_UP);
         } catch (InterruptedException ex) {
             Logger.getLogger(RepairReschedule.class.getName()).log(Level.SEVERE, null, ex);
             context.addMessage("Waiting for wake up cancelled").activate(RepairTransition.CANCEL);

@@ -27,11 +27,11 @@ public class Cancelled extends State<RepairContext, Void, CancelledInner> {
     }
 
     @Override
-    public Void execute(RepairContext p) {
-        p.cancel = false;
-        if (p.checkAndApplyChanges()){
-            p.activate(RepairTransition.ACTIVATE);
-        }
+    public Void execute(RepairContext p) {       
+        p.cancelRepairSessions();        
+//        if (p.checkAndApplyChanges()){
+//            p.activate(RepairTransition.ACTIVATE);
+//        }
         return null;
     }
     
