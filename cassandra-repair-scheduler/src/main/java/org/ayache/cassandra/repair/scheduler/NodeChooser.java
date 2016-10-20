@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -52,15 +51,12 @@ public class NodeChooser {
         Collection<Float> values = new LinkedList<>();
         float Rf = 0;
         for (String keyspace : keyspaces) {
-            Iterator<String> iterator = nodesFromDC.iterator();
-            String node = iterator.next();
             values.clear();
             Map<InetAddress, Float> effectiveOwnership = serviceMBean.effectiveOwnership(keyspace);
             for (Map.Entry<InetAddress, Float> entry : effectiveOwnership.entrySet()) {
-                if (entry.getKey().getHostAddress().equals(node)) {
-                    values.add(entry.getValue());
-                    if (iterator.hasNext()) {
-                        node = iterator.next();
+                for (String node : nodesFromDC) {
+                    if (entry.getKey().getHostAddress().equals(node)) {
+                        values.add(entry.getValue());
                     }
                 }
             }
