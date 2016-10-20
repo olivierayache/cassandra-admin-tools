@@ -5,7 +5,14 @@
  */
 package org.ayache.cassandra.repair.scheduler.states;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.ayache.automaton.api.IStateRetriever;
@@ -21,6 +28,8 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
 @OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"END_REPAIR", "REPAIR_FAILED", "CANCEL"})
 public class Repair extends State<RepairContext, Void, RepairInner> {
 
+    private final Lock lock = new ReentrantLock();
+
     public Repair(boolean[] accessor) {
         super(accessor);
     }
@@ -33,28 +42,109 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
     }
 
     @Override
+    public boolean shouldExecuteAsync() {
+        return true;
+    }
+
+    @Override
     public Void execute(RepairContext context) {
-        if (context.cancel) {
-            context.addMessage("Repair aborted").activate(RepairTransition.CANCEL);
-            return null;
-        }
-        for (String nodeToRepair : context.getNodesToRepair()) {
-            try {
-                NodeReparator nodeProbe = context.getNodeProbe(nodeToRepair);
-                List<String> keyspaces = nodeProbe.getKeyspaces();
-                for (String keyspace : keyspaces) {
-                    nodeProbe.forceRepairAsync(context, System.out, keyspace, true, context.repairLocalDCOnly, true);
+        lock.lock();
+        try {
+            Condition condition = lock.newCondition();
+            List<NodeReparator> nodeReparators = new LinkedList<>();
+            List<String> keyspacesToRepair = null;
+            for (String nodeToRepair : context.getNodesToRepair()) {
+                try {
+                    NodeReparator nodeProbe = context.getNodeProbe(nodeToRepair);
+                    if (keyspacesToRepair == null) {
+                        keyspacesToRepair = nodeProbe.getKeyspaces();
+                    }
+                    nodeReparators.add(nodeProbe);
+                } catch (IOException ex) {
+                    Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
                 }
-            } catch (Exception ex) {
-                Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
-                context.error(nodeToRepair, NodeReparator.Status.JMX_UNKWOWN, ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
+            }
+            
+            
+            if (nodeReparators.isEmpty()) {
+                return null;
+            }
+            
+            long timeout = TimeUnit.NANOSECONDS.convert(8, TimeUnit.HOURS);
+            
+            for (String keyspace : keyspacesToRepair) {
+                List<NodeReparator> reparatorsToWait = new ArrayList<>();
+                for (NodeReparator nodeReparator : nodeReparators) {
+                    try {
+                        long forceRepairAsync = nodeReparator.forceRepairAsync(context, lock, condition, System.out, keyspace, true, context.repairLocalDCOnly, true);
+                        if (forceRepairAsync>0){
+                            reparatorsToWait.add(nodeReparator);
+                        }
+                    } catch (IOException ex) {
+                        Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
+                        context.error(nodeReparator.host, NodeReparator.Status.JMX_UNKWOWN, ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
+                    }
+                }
+                
+                try {
+                    timeout = waitForRepairs(context, condition, reparatorsToWait, timeout);
+                    if (timeout<0){
+                        break;
+                    }
+                } catch (InterruptedException ex) {
+                    for (NodeReparator nodeReparator : nodeReparators) {
+                        nodeReparator.cancel();
+                    }
+                    context.addMessage("Waiting for repair cancelled").activate(RepairTransition.CANCEL);
+                    return null;
+                } finally {
+                    for (NodeReparator nodeReparator : nodeReparators) {
+                        nodeReparator.removeListeners();
+                    }
+                }
+                
+            }
+
+            context.activate(RepairTransition.END_REPAIR);
+        } finally {
+            lock.unlock();
+        }
+        return null;
+    }
+
+    private long waitForRepairs(RepairContext context, Condition condition, List<NodeReparator> nodeReparators, long timeout) throws InterruptedException {
+        if (nodeReparators.isEmpty()){
+            return timeout;
+        }
+        long remaining = timeout;
+        boolean finished = false;
+        while (!finished) {
+            if ((remaining = condition.awaitNanos(remaining)) <= 0) { // prevents from waiting indefinitly
+                for (NodeReparator nodeReparator : nodeReparators) {
+                    if (!nodeReparator.finished()) {
+                        nodeReparator.repairTimeout(context);
+                    }
+                }
+                return remaining;
+            } else {
+                boolean endRepair = true;
+                for (NodeReparator nodeReparator : nodeReparators) {
+                    nodeReparator.checkForErrors(context);
+                    endRepair &= nodeReparator.finished();
+                }
+                if (endRepair) {
+                    finished = true;
+                }
+               
+//                if (errorMessage != null) {
+//                    repairContext.error(host, NodeReparator.Status.JMX_UNKWOWN, errorMessage).activate(RepairTransition.REPAIR_FAILED);
+//                }
+//                if (!finished && success) {
+//                    repairContext.error(host, NodeReparator.Status.JMX_UNKWOWN, "Unbelievable, it seems that a spurious wake up occurs!!!").activate(RepairTransition.REPAIR_FAILED);
+//                }
             }
         }
-        if (!context.getNodesToRepairInUnknown().isEmpty()){
-            context.activate(RepairTransition.REPAIR_FAILED);
-        }
-        context.activate(RepairTransition.END_REPAIR);
-        return null;
+        return remaining;
     }
 
 }

@@ -37,7 +37,7 @@ import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
 public class RepairContext {
 
     private final List<String> nodesToRepair = new ArrayList<>();
-    private final List<String> aggregatedNodesToRepair = new ArrayList<>();
+    private final Set<String> aggregatedNodesToRepair = new ConcurrentSkipListSet<>();
     private final Set<String> nodesToRepairInError = new ConcurrentSkipListSet<>();
     private final Set<String> nodesToRepairInUnknown = new ConcurrentSkipListSet<>();
     private final Map<String, ErrorInfoAggregator> nodesToRepairInFailure = new ConcurrentHashMap<>();
@@ -63,10 +63,10 @@ public class RepairContext {
     int lastMinutesToBegin;
     boolean repairLocalDCOnly;
     private final transient ExecutorService executorService = Executors.newFixedThreadPool(1);
-    private volatile transient FutureHolder currentTask;
+    private volatile transient Future currentTask;
     private volatile transient Condition waitingCondition;
     private volatile transient Lock waitingLock;
-    volatile boolean cancel;
+//    volatile boolean cancel;
     private RepairConfigDto nextConfig;
     private String lastRepairedNode;
 
@@ -193,15 +193,26 @@ public class RepairContext {
     }
 
     public void cancelRepairSessions() {
-        currentTask.cancel(true);
-        cancel = true;
+        activate(RepairTransition.CANCEL);
+        if (currentTask != null){
+            currentTask.cancel(true);
+        }
     }
 
     public void activate(RepairTransition... transitions) {
-        ActivatorRunnable activatorRunnable = new ActivatorRunnable(automaton, transitions);
-        currentTask = new FutureHolder(executorService.submit(activatorRunnable), activatorRunnable);
+        ActivatorRunnable activatorRunnable = new ActivatorRunnable(executorService, automaton, transitions) {
+            @Override
+            public void onTaskStarted(Future task) {
+                currentTask = task;
+            }
+        };
+        activatorRunnable.init();
     }
 
+    void onTaskStarted(Future task){
+        currentTask = task;
+    }
+    
     public String getState() {
         return automaton.getCurrentState().toString();
     }
@@ -224,6 +235,7 @@ public class RepairContext {
 
     public void editConfigurations(RepairConfigDto dto) {
         nextConfig = dto;
+        activate(RepairTransition.CONFIG_CHANGED);
     }
 
     public boolean checkAndApplyChanges() {
@@ -248,7 +260,6 @@ public class RepairContext {
     public void cancelWaiting() {
         if (waitingLock != null && waitingLock.tryLock()) {
             try {
-                cancel = true;
                 waitingCondition.signal();
             } finally {
                 waitingLock.unlock();
@@ -260,41 +271,61 @@ public class RepairContext {
         ClusterServiceFactory.getInstance().saveCluster(clusterName);
     }
 
-    private static class ActivatorRunnable implements Runnable {
+    private abstract static class ActivatorRunnable implements Runnable {
 
         private final RepairTransition[] transitions;
         private final RepairAutomaton automaton;
-        private volatile boolean started;
-
-        public ActivatorRunnable(RepairAutomaton automaton, RepairTransition... transitions) {
+        private final ExecutorService executorService;
+        
+        public ActivatorRunnable(ExecutorService executorService, RepairAutomaton automaton, RepairTransition... transitions) {
             this.transitions = transitions;
             this.automaton = automaton;
+            this.executorService = executorService;
         }
 
+        public void init() {
+            executorService.submit(this);
+        }
+        
         @Override
         public void run() {
-            started = true;
             automaton.activate(transitions);
             automaton.updateCurrentState();
-            automaton.execute();
-        }
-    }
-
-    private static final class FutureHolder {
-
-        Future task;
-        ActivatorRunnable runnable;
-
-        public FutureHolder(Future task, ActivatorRunnable runnable) {
-            this.task = task;
-            this.runnable = runnable;
-        }
-
-        public void cancel(boolean mayInterrupt) {
-            if (runnable.started) {
-                task.cancel(mayInterrupt);
+            Future postExecute = automaton.postExecute();
+            if (postExecute != null){
+                onTaskStarted(postExecute);
             }
         }
+
+        public abstract void onTaskStarted(Future task);
+        
     }
+//
+//    private static final class FutureHolder {
+//
+//        Future task;
+//        ActivatorRunnable runnable;
+//        RepairContext context;
+//        
+//        public FutureHolder(Future task, ActivatorRunnable runnable, RepairContext context) {
+//            this.task = task;
+//            this.runnable = runnable;
+//            this.context = context;
+//        }
+//        
+//        void taskStarted() {
+//            context.onTaskStarted(task);
+//        }
+//        
+//        void taskDone() {
+//            
+//        }
+//        
+//        public void cancel(boolean mayInterrupt) {
+//            if (runnable.started) {
+//                task.cancel(mayInterrupt);
+//            }
+//        }
+//    }
 
 }

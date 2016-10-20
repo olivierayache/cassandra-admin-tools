@@ -17,7 +17,7 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
  *
  * @author Ayache
  */
-@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"NODES_FOUND", "REPAIR_FAILED"})
+@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"NODES_FOUND", "REPAIR_FAILED", "CANCEL"})
 public class Init extends State<RepairContext, Void, InitInner> {
 
     public Init(boolean[] accessor) {
@@ -28,6 +28,7 @@ public class Init extends State<RepairContext, Void, InitInner> {
     public void registerNextStates(IStateRetriever retriever) {
         addNextState(retriever.state(Repair.class)).whenNODES_FOUND().end();
         addNextState(retriever.state(Failure.class)).whenREPAIR_FAILED().end();
+        addNextState(retriever.state(Cancelled.class)).whenCANCEL().end();
     }
 
     @Override

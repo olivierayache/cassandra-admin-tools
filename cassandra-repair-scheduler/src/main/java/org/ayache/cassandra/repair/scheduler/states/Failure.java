@@ -56,16 +56,16 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
                 // Repair won't be reschedule, error should be handled manually
                 case JMX_UNKWOWN:
                     p.addNodeInUnknownError(aggregator.getHost());
-                    boolean ok = false;
-                    while (!ok) {
-                        try {
-                            Thread.sleep(10000);
-                            p.checkJMXConnections();
-                            ok = true;
-                        } catch (Exception ex) {
-                            Logger.getLogger(Failure.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 10 seconds", ex);
-                        }
-                    }
+//                    boolean ok = false;
+//                    while (!ok) {
+//                        try {
+//                            Thread.sleep(10000);
+//                            p.checkJMXConnections();
+//                            ok = true;
+//                        } catch (Exception ex) {
+//                            Logger.getLogger(Failure.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 10 seconds", ex);
+//                        }
+//                    }
                     break;
                 default:
                     p.addNodeInUnknownError(aggregator.getHost());

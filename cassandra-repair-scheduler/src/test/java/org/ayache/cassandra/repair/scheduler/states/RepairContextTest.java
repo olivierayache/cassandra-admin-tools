@@ -84,14 +84,14 @@ public class RepairContextTest {
         Mockito.when(mock.getSsProxy()).thenReturn(serviceMBean);
         Mockito.when(mock.getDc()).thenReturn("DC1");
         instance.addNodeConnector(mock);
-        Collection<String> expResult = Arrays.asList("127.0.0.5", "127.0.0.1");
+        Collection<String> expResult = Arrays.asList("127.0.0.1", "127.0.0.5");
         Collection<String> result = instance.initNodesToRepair();
-        assertEquals(expResult, result);
+        assertArrayEquals(expResult.toArray(), result.toArray());
         instance.addNodeInError("127.0.0.8");
         instance.addNodeInUnknownError("127.0.0.9");
         expResult = Arrays.asList("127.0.0.8", "127.0.0.9");
         result = instance.initNodesToRepair();
-        assertEquals(expResult, result);
+        assertArrayEquals(expResult.toArray(), result.toArray());
     }
 //
 //    /**

@@ -16,7 +16,7 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
  *
  * @author Ayache
  */
-@OutGoingTransitions(transitionType = RepairTransition.class, transitions = "CONTEXT_CLEARED")
+@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"CONTEXT_CLEARED", "CANCEL"})
 public class Success extends State<RepairContext, Object, SuccessInner>{
 
     public Success(boolean[] accessor) {
@@ -26,6 +26,7 @@ public class Success extends State<RepairContext, Object, SuccessInner>{
     @Override
     public void registerNextStates(IStateRetriever retriever) {
         addNextState(retriever.state(RepairReschedule.class)).whenCONTEXT_CLEARED().end();
+        addNextState(retriever.state(Cancelled.class)).whenCANCEL().end();
     }
 
     @Override
