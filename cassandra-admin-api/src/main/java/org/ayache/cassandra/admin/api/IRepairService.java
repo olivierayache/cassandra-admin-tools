@@ -26,13 +26,17 @@ import org.fusesource.restygwt.client.DirectRestService;
  */
 public interface IRepairService extends DirectRestService {
 
-    @GET
+    @PUT
     @Path("handle")
     void handleErrorNotification(@DefaultValue(value = "true") @QueryParam(value = "restart") boolean restartSession);
 
+    @PUT
+    @Path("restart/{id}")
+    void restartSessionForNode(@PathParam(value = "id") String id, @QueryParam(value = "checkForRestart") @DefaultValue("false") boolean checkForRestart);
+    
     @DELETE
     @Path("errors/{id}")
-    void purgeErrorForNode(@PathParam(value = "id") String id);
+    void purgeErrorForNode(@PathParam(value = "id") String id, @QueryParam(value = "checkForRestart") @DefaultValue("false") boolean checkForRestart);
 
     @DELETE
     @Path("cancel")

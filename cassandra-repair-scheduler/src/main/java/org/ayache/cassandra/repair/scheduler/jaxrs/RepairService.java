@@ -6,8 +6,8 @@
 package org.ayache.cassandra.repair.scheduler.jaxrs;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,6 +15,7 @@ import org.ayache.cassandra.admin.api.IRepairService;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
+import org.ayache.cassandra.repair.scheduler.states.Failure;
 import org.ayache.cassandra.repair.scheduler.states.RepairContext;
 
 /**
@@ -40,8 +41,22 @@ public class RepairService implements IRepairService {
     }
 
     @Override
-    public void purgeErrorForNode(String id) {
-        ClusterServiceFactory.getInstance().getRepairContext(clusterName).removeNodeInError(id);
+    public void restartSessionForNode(String id, boolean checkForRestart) {
+        RepairContext repairContext = ClusterServiceFactory.getInstance().getRepairContext(clusterName);
+        if (repairContext.addNodeToRestart(id) && checkForRestart) {
+            repairContext.activate(RepairTransition.ACKNOWLEDGED);
+        }
+    }
+
+    @Override
+    public void purgeErrorForNode(String id, boolean checkForRestart) {
+        RepairContext repairContext = ClusterServiceFactory.getInstance().getRepairContext(clusterName);
+        repairContext.removeNodeInError(id);
+        if (checkForRestart && repairContext.getNodesToRepairInUnknown().isEmpty()){
+            repairContext.activate(RepairTransition.IGNORE_FAILURE);
+        } else if (checkForRestart && repairContext.getNodesToRepairInUnknown().isEmpty()){
+            repairContext.activate(RepairTransition.ACKNOWLEDGED);
+        }
     }
 
     @Override
@@ -56,7 +71,7 @@ public class RepairService implements IRepairService {
 
     @Override
     public String status() {
-        return ClusterServiceFactory.getInstance().getRepairContext(clusterName).getState();
+        return ClusterServiceFactory.getInstance().getRepairContext(clusterName).getState().toString();
     }
 
     @Override
@@ -67,7 +82,9 @@ public class RepairService implements IRepairService {
             Map<String, NodeDto> nodes = ClusterServiceFactory.getInstance().getNodes(clusterName);
 
             for (String host : context.getNodesToRepairInUnknown()) {
-                nodes.get(host).setRepairInError(true);
+                if (context.getState() instanceof Failure){
+                    nodes.get(host).setRepairInError(true);
+                }
             }
             for (String host : context.getNodesToRepair()) {
                 nodes.get(host).setRepairInProgress(true);
@@ -76,7 +93,7 @@ public class RepairService implements IRepairService {
         } catch (IOException ex) {
             Logger.getLogger(RepairService.class.getName()).log(Level.SEVERE, null, ex);
         }
-        return new ArrayList<>();
+        return Collections.EMPTY_LIST;
     }
 
     @Override

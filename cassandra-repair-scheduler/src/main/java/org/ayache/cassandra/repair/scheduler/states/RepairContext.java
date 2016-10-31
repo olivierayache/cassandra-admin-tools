@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import org.ayache.automaton.api.IState;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
 import org.ayache.cassandra.repair.scheduler.NodeChooser;
@@ -40,9 +41,11 @@ public class RepairContext {
     private final Set<String> aggregatedNodesToRepair = new ConcurrentSkipListSet<>();
     private final Set<String> nodesToRepairInError = new ConcurrentSkipListSet<>();
     private final Set<String> nodesToRepairInUnknown = new ConcurrentSkipListSet<>();
+    private final transient Set<String> nodesToRepairToRestart = new ConcurrentSkipListSet<>();
     private final Map<String, ErrorInfoAggregator> nodesToRepairInFailure = new ConcurrentHashMap<>();
     private final transient RepairAutomaton automaton = new RepairAutomaton();
     private final SizedLinkedList<String> messages = new SizedLinkedList();              
+
     private static final class SizedLinkedList<T> extends LinkedList<T> {
 
         public boolean add(T e) {
@@ -56,7 +59,7 @@ public class RepairContext {
     public final transient Map<String, NodeConnector> map = new HashMap<>();
     volatile NodeReparator.Status status = Status.STARTED;
     private final String clusterName;
-    final int jmxPort;
+    private final int jmxPort;
     int hourToBegin;
     int lastHourToBegin;
     int minutesToBegin;
@@ -153,6 +156,13 @@ public class RepairContext {
         nodesToRepairInUnknown.add(host);
     }
 
+    public boolean addNodeToRestart(String id) {
+        if (nodesToRepairInUnknown.contains(id)){
+            nodesToRepairToRestart.add(id);
+        }
+        return nodesToRepairToRestart.equals(nodesToRepairInUnknown);
+    }
+        
     public void removeNodeInError(String id) {
         nodesToRepairInUnknown.remove(id);
     }
@@ -213,8 +223,8 @@ public class RepairContext {
         currentTask = task;
     }
     
-    public String getState() {
-        return automaton.getCurrentState().toString();
+    public IState getState() {
+        return automaton.getCurrentState();
     }
 
     public Map<String, NodeDto> getNodes() throws IOException {
@@ -230,7 +240,7 @@ public class RepairContext {
     }
 
     public RepairConfigDto getConfigurations() {
-        return RepairConfigDto.RepairConfigBuilder.build(hourToBegin, minutesToBegin, lastHourToBegin, lastMinutesToBegin, true, repairLocalDCOnly);
+        return nextConfig != null ? nextConfig : RepairConfigDto.RepairConfigBuilder.build(hourToBegin, minutesToBegin, lastHourToBegin, lastMinutesToBegin, true, repairLocalDCOnly);
     }
 
     public void editConfigurations(RepairConfigDto dto) {
