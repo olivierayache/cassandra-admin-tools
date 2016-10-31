@@ -8,6 +8,8 @@ package org.ayache.cassandra.repair.scheduler;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.management.JMX;
@@ -49,6 +51,32 @@ public class NodeConnector {
     private transient EndpointSnitchInfoMBean esProxy;
 
     private transient NodeReparator nodeReparator;
+    
+    private static final ExecutorService ES = Executors.newCachedThreadPool();
+    
+    private static final class ReconnectRunnable implements Runnable{
+
+        private final NodeConnector connector;
+
+        public ReconnectRunnable(NodeConnector connector) {
+            this.connector = connector;
+        }
+        
+        @Override
+        public void run() {
+            boolean ok = false;
+            while (!ok) {
+                try {
+                    Thread.sleep(2000);
+                    connector.connect();
+                    ok = true;
+                } catch (Exception ex) {
+                    Logger.getLogger(NodeConnector.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 2 seconds", ex.getMessage());
+                }
+            }
+        }
+        
+    }
 
     /**
      * Creates a NodeConnector using the specified JMX host and port.
@@ -129,16 +157,7 @@ public class NodeConnector {
             @Override
             public void handleNotification(Notification notification, Object handback) {
                 if (notification.getType().equals(JMXConnectionNotification.CLOSED) || notification.getType().equals(JMXConnectionNotification.FAILED)) {
-                    boolean ok = false;
-                    while (!ok) {
-                        try {
-                            Thread.sleep(2000);
-                            connect();
-                            ok = true;
-                        } catch (Exception ex) {
-                            Logger.getLogger(NodeConnector.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 2 seconds", ex.getMessage());
-                        }
-                    }
+                    ES.submit(new ReconnectRunnable(NodeConnector.this));
                 }
             }
         }, null, null);
@@ -176,10 +195,11 @@ public class NodeConnector {
     public Map<String, NodeDto> getNodes() throws IOException {
         Map<String, NodeDto> nodes = new HashMap<>();
         Map<String, String> loadMap = ssProxy.getLoadMap();
-        for (Map.Entry<String, String> entry : loadMap.entrySet()) {
-            nodes.put(entry.getKey(), NodeDto.NodeDtoBuilder.build(entry.getKey(), entry.getValue(), esProxy.getDatacenter(entry.getKey())));
+        Map<String, String> tokenToEndpointMap = ssProxy.getTokenToEndpointMap();
+        for (Map.Entry<String, String> entry : tokenToEndpointMap.entrySet()) {
+            String host = entry.getValue();
+            nodes.put(host, NodeDto.NodeDtoBuilder.build(host, loadMap.get(host), esProxy.getDatacenter(host)));
         }
-
         return nodes;
     }
 
