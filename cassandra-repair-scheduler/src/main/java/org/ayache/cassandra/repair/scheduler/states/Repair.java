@@ -7,6 +7,7 @@ package org.ayache.cassandra.repair.scheduler.states;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,7 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
 public class Repair extends State<RepairContext, Void, RepairInner> {
 
     private final Lock lock = new ReentrantLock();
+    private static final long MAX_TIME_TO_WAIT = TimeUnit.NANOSECONDS.convert(8, TimeUnit.HOURS);
 
     public Repair(boolean[] accessor) {
         super(accessor);
@@ -52,25 +54,22 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
         try {
             Condition condition = lock.newCondition();
             List<NodeReparator> nodeReparators = new LinkedList<>();
-            List<String> keyspacesToRepair = null;
+            List<String> keyspacesToRepair = Collections.EMPTY_LIST;
             for (String nodeToRepair : context.getNodesToRepair()) {
                 try {
                     NodeReparator nodeProbe = context.getNodeProbe(nodeToRepair);
-                    if (keyspacesToRepair == null) {
+                    if (keyspacesToRepair.isEmpty()) {
                         keyspacesToRepair = nodeProbe.getKeyspaces();
                     }
                     nodeReparators.add(nodeProbe);
                 } catch (IOException ex) {
                     Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
+                    context.addStatus(NodeReparator.Status.JMX_ERROR).addMessage(ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
+                    keyspacesToRepair.clear();
                 }
             }
             
-            
-            if (nodeReparators.isEmpty()) {
-                return null;
-            }
-            
-            long timeout = TimeUnit.NANOSECONDS.convert(8, TimeUnit.HOURS);
+            long timeout = MAX_TIME_TO_WAIT;
             
             for (String keyspace : keyspacesToRepair) {
                 List<NodeReparator> reparatorsToWait = new ArrayList<>();

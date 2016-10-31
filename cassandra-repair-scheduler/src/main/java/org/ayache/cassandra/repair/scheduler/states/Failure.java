@@ -102,6 +102,11 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
                         Logger.getLogger(Failure.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 10 seconds", ex.getMessage());
                     }
                 }
+                if (nbRetry == 0) {
+                    nbRetry = RETRY_ON_SESSION_FAILED;
+                    return null;
+                }
+                nbRetry--;
                 p.activate(RepairTransition.ACKNOWLEDGED);
                 break;
         }

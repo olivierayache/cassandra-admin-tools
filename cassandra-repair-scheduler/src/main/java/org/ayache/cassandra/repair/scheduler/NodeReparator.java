@@ -13,7 +13,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.management.ListenerNotFoundException;
 import javax.management.Notification;
 import javax.management.NotificationListener;
 import javax.management.remote.JMXConnectionNotification;
@@ -86,7 +85,7 @@ public class NodeReparator implements NotificationListener {
         try {
             ssProxy.removeNotificationListener(this);
             jmxc.removeConnectionNotificationListener(this);
-        } catch (ListenerNotFoundException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(NodeReparator.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -104,7 +103,7 @@ public class NodeReparator implements NotificationListener {
         try {
             jmxc.addConnectionNotificationListener(this, null, null);
             ssProxy.addNotificationListener(this, null, null);
-            cmd = ssProxy.forceRepairAsync(keyspace, isSequential, isLocal, primaryRange, columnFamilies);
+            cmd = ssProxy.forceRepairAsync(keyspace, isSequential, isLocal, isLocal ? false : primaryRange, columnFamilies);
             if (cmd == 0) {
                 String message = String.format("[%s] %s Nothing to repair for keyspace '%s'", format.format(System.currentTimeMillis()), host, keyspace);
                 out.println(message);
