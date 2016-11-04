@@ -40,7 +40,7 @@ public class NodeChooser {
      * @param lastRepairedNode
      * @throws java.io.IOException
      */
-    public NodeChooser(StorageServiceMBean serviceMBean, EndpointSnitchInfoMBean esMBean, String dc, String lastRepairedNode) throws IOException {
+    public NodeChooser(StorageServiceMBean serviceMBean, EndpointSnitchInfoMBean esMBean, String dc, String lastRepairedNode, boolean simult) throws IOException {
         this.serviceMBean = serviceMBean;
         this.esMBean = esMBean;
         this.dc = dc;
@@ -51,24 +51,28 @@ public class NodeChooser {
         Collection<Float> values = new LinkedList<>();
         float Rf = 0;
         for (String keyspace : keyspaces) {
-            values.clear();
-            Map<InetAddress, Float> effectiveOwnership = serviceMBean.effectiveOwnership(keyspace);
-            for (Map.Entry<InetAddress, Float> entry : effectiveOwnership.entrySet()) {
-                for (String node : nodesFromDC) {
-                    if (entry.getKey().getHostAddress().equals(node)) {
-                        values.add(entry.getValue());
+            try {
+                values.clear();
+                Map<InetAddress, Float> effectiveOwnership = serviceMBean.effectiveOwnership(keyspace);
+                for (Map.Entry<InetAddress, Float> entry : effectiveOwnership.entrySet()) {
+                    for (String node : nodesFromDC) {
+                        if (entry.getKey().getHostAddress().equals(node)) {
+                            values.add(entry.getValue());
+                        }
                     }
                 }
+                float localRf = 0;
+                for (Float value : values) {
+                    localRf += value;
+                }
+                Rf = (localRf > Rf) ? localRf : Rf;
+            } catch (IllegalStateException ex) {
+                //Ignore error, pass to next keyspace
             }
-            float localRf = 0;
-            for (Float value : values) {
-                localRf += value;
-            }
-            Rf = (localRf > Rf) ? localRf : Rf;
         }
 //        replicates = (int) Rf;
 
-        supportSimultaneousRepair = nodesFromDC.size() >= 3 * Rf;
+        supportSimultaneousRepair = simult && nodesFromDC.size() >= 3 * Rf;
         Logger.getLogger(NodeChooser.class.getName()).info(serviceMBean.getLoadMap().toString());
         Logger.getLogger(NodeChooser.class.getName()).info("Replicas :" + Rf + " Simultaneous Repair Supported: " + supportSimultaneousRepair);
     }

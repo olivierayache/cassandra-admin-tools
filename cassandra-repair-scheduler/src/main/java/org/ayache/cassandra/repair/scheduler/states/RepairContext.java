@@ -65,6 +65,7 @@ public class RepairContext {
     int minutesToBegin;
     int lastMinutesToBegin;
     boolean repairLocalDCOnly;
+    boolean simult = true;
     private final transient ExecutorService executorService = Executors.newFixedThreadPool(1);
     private volatile transient Future currentTask;
     private volatile transient Condition waitingCondition;
@@ -98,7 +99,7 @@ public class RepairContext {
         aggregatedNodesToRepair.addAll(nodesToRepairInUnknown);
         if (aggregatedNodesToRepair.isEmpty()) {
             NodeConnector connector = map.values().iterator().next();
-            nodesToRepair.addAll(new NodeChooser(connector.getSsProxy(), connector.getEsProxy(), connector.getDc(), lastRepairedNode).getNextNodeToRepair());
+            nodesToRepair.addAll(new NodeChooser(connector.getSsProxy(), connector.getEsProxy(), connector.getDc(), lastRepairedNode, simult).getNextNodeToRepair());
             aggregatedNodesToRepair.addAll(nodesToRepair);
         }
         return aggregatedNodesToRepair;
@@ -240,7 +241,7 @@ public class RepairContext {
     }
 
     public RepairConfigDto getConfigurations() {
-        return nextConfig != null ? nextConfig : RepairConfigDto.RepairConfigBuilder.build(hourToBegin, minutesToBegin, lastHourToBegin, lastMinutesToBegin, true, repairLocalDCOnly);
+        return nextConfig != null ? nextConfig : RepairConfigDto.RepairConfigBuilder.build(hourToBegin, minutesToBegin, lastHourToBegin, lastMinutesToBegin, simult, repairLocalDCOnly);
     }
 
     public void editConfigurations(RepairConfigDto dto) {
@@ -255,6 +256,7 @@ public class RepairContext {
             lastHourToBegin = nextConfig.lastHourToBegin;
             lastMinutesToBegin = nextConfig.lastMinutesToBegin;
             repairLocalDCOnly = nextConfig.repairLocalDCOnly;
+            simult = nextConfig.simultaneousRepair;
             nextConfig = null;
             return true;
         }

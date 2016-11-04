@@ -83,7 +83,7 @@ public class NodeChooserTest {
             public String getSnitchName() {
                 throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
-        }, "DC1", null);
+        }, "DC1", null, true);
         Collection<String> expResult = new HashSet<>(Arrays.asList("127.0.0.1","127.0.0.5"));
         Collection<String> result = instance.getNextNodeToRepair();
         assertEquals(expResult, result);
@@ -103,7 +103,7 @@ public class NodeChooserTest {
             public String getSnitchName() {
                 throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
-        }, "DC1", "127.0.0.2");
+        }, "DC1", "127.0.0.2", true);
         expResult = new HashSet<>(Arrays.asList("127.0.0.3","127.0.0.7"));
         result = instance.getNextNodeToRepair();
         assertEquals(expResult, result);
@@ -123,7 +123,7 @@ public class NodeChooserTest {
             public String getSnitchName() {
                 throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
-        }, "DC1", "127.0.0.8");
+        }, "DC1", "127.0.0.8", true);
         expResult = new HashSet<>(Arrays.asList("127.0.0.9","127.0.0.4"));
         result = instance.getNextNodeToRepair();
         assertEquals(expResult, result);
@@ -143,7 +143,7 @@ public class NodeChooserTest {
             public String getSnitchName() {
                 throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
-        }, "DC1", "127.0.0.9");
+        }, "DC1", "127.0.0.9", true);
         expResult = new HashSet<>(Arrays.asList("127.0.0.1","127.0.0.5"));
         result = instance.getNextNodeToRepair();
         assertEquals(expResult, result);
