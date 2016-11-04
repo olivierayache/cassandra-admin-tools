@@ -48,6 +48,11 @@ public class NodeDto {
     public final String getLoad() {
         return load;
     }
+    
+    @JsOverlay
+    public final String getDC() {
+        return dc;
+    }
 
     @JsOverlay
     public final boolean isRepairInProgress() {
