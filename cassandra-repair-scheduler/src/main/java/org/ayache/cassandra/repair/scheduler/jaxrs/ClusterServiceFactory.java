@@ -9,7 +9,6 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
@@ -62,8 +61,11 @@ public class ClusterServiceFactory {
 
     public void saveCluster(Cluster cluster) throws IOException {
         String toJson = new Gson().toJson(cluster);
-        new File("data").mkdir();
-        try (FileOutputStream fileOutputStream = new FileOutputStream("data/"+cluster.getName())) {
+        File file = new File("data");
+        if (!file.exists()){
+            file.mkdir();
+        }
+        try (FileOutputStream fileOutputStream = new FileOutputStream(new File(file, cluster.getName()))) {
             fileOutputStream.write(toJson.getBytes());
         }
     }
