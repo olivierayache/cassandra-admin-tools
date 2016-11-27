@@ -14,7 +14,7 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
  * 
  * @author Ayache
  */
-@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"ACTIVATE"})
+@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"ACTIVATE"}, init = true)
 public class Cancelled extends State<RepairContext, Void, CancelledInner> {
 
     public Cancelled(boolean[] accessor) {

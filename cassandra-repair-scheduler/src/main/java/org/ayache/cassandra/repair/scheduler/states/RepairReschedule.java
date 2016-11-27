@@ -21,7 +21,7 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
  *
  * @author Ayache
  */
-@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"WAKE_UP", "CANCEL", "CONFIG_CHANGED"}, init = true)
+@OutGoingTransitions(transitionType = RepairTransition.class, transitions = {"WAKE_UP", "CANCEL", "CONFIG_CHANGED"})
 public class RepairReschedule extends State<RepairContext, Void, RepairRescheduleInner> {
 
     private static final Calendar CALENDAR = Calendar.getInstance();
