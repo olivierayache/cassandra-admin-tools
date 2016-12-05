@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
+import org.ayache.cassandra.admin.backup.BackupContext;
 import org.ayache.cassandra.repair.scheduler.NodeConnector;
 import org.ayache.cassandra.repair.scheduler.states.RepairContext;
 
@@ -25,6 +26,7 @@ public class Cluster {
     private final String name;
     private final int port;
     private final RepairContext repairContext;
+    private final BackupContext backupContext;
     private final NodeConnector nodeConnector;
     private transient final Map<String, NodeConnector> map = new ConcurrentHashMap<>();
 
@@ -35,6 +37,7 @@ public class Cluster {
         this.name = null;
         this.port = 0;
         this.repairContext = null;
+        this.backupContext = null;
         this.nodeConnector = null;
     }
 
@@ -49,6 +52,7 @@ public class Cluster {
         this.name = name;
         this.port = port;
         this.repairContext = repairContext;
+        this.backupContext = new BackupContext(name);
         this.nodeConnector = nodeConnector;
     }
 
@@ -68,6 +72,14 @@ public class Cluster {
         return repairContext;
     }
 
+    /**
+     * 
+     * @return 
+     */
+    public BackupContext getBackupContext() {
+        return backupContext;
+    }
+    
     /**
      * 
      * @return 

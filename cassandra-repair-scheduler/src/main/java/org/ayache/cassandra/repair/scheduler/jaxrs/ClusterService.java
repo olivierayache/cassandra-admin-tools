@@ -5,10 +5,12 @@
  */
 package org.ayache.cassandra.repair.scheduler.jaxrs;
 
+import org.ayache.cassandra.admin.backup.jaxrs.BackupService;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.ayache.cassandra.admin.api.IBackupService;
 import org.ayache.cassandra.admin.api.IClusterService;
 import org.ayache.cassandra.admin.api.INodeService;
 import org.ayache.cassandra.admin.api.IRepairService;
@@ -42,6 +44,11 @@ public class ClusterService implements IClusterService {
     @Override
     public INodeService getNodeService(String clusterName) {
         return new NodeService(clusterName);
+    }
+
+    @Override
+    public IBackupService getBackupService(String clusterName) {
+        return new BackupService(clusterName);
     }
 
 }

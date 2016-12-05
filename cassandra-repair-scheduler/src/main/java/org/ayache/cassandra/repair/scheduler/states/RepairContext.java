@@ -9,11 +9,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,7 +46,7 @@ public class RepairContext {
     private final transient RepairAutomaton automaton = new RepairAutomaton();
     private final SizedLinkedList<String> messages = new SizedLinkedList();              
 
-    private static final class SizedLinkedList<T> extends LinkedList<T> {
+    private static final class SizedLinkedList<T> extends ConcurrentLinkedQueue<T> {
 
         public boolean add(T e) {
             if (size() > 200) {

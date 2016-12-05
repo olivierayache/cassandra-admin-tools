@@ -38,5 +38,9 @@ public interface IClusterService extends DirectRestService {
     @Path("/{id}/nodes")
     @GwtIncompatible
     INodeService getNodeService(@PathParam("id") String clusterName);
+    
+    @Path("/{id}/backup")
+    @GwtIncompatible
+    IBackupService getBackupService(@PathParam("id") String clusterName);
 
 }

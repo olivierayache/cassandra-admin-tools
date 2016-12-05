@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
+import org.ayache.cassandra.admin.backup.BackupContext;
 import org.ayache.cassandra.repair.scheduler.NodeConnector;
 import org.ayache.cassandra.repair.scheduler.model.Cluster;
 import org.ayache.cassandra.repair.scheduler.states.RepairContext;
@@ -76,6 +77,10 @@ public class ClusterServiceFactory {
 
     public RepairContext getRepairContext(String clusterName) {
         return clusters.get(clusterName).getRepairContext();
+    }
+    
+    public BackupContext getBackupContext(String clusterName) {
+        return clusters.get(clusterName).getBackupContext();
     }
 
     public Map<String, NodeDto> getNodes(String clusterName) throws IOException {

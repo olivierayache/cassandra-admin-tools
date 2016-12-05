@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.ayache.cassandra.repair.scheduler;
+package org.ayache.cassandra.admin;
 
 import io.undertow.Undertow;
 import io.undertow.server.handlers.resource.ClassPathResourceManager;
@@ -11,6 +11,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
@@ -18,6 +23,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterService;
 import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
+import org.ayache.cassandra.repair.scheduler.states.Repair;
 import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
 import org.jboss.resteasy.spi.ResteasyDeployment;
 
@@ -35,12 +41,12 @@ public class NewMain {
         OPTIONS.addOption("jh", "jaxrshost", true, "Listen address of REST server");
         OPTIONS.addOption("jp", "jaxrsport", true, "Listen port of REST server");
     }
-
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) throws IOException, InterruptedException, ParseException {
-
+        //LogManager.getLogManager().readConfiguration(NewMain.class.getResourceAsStream("/logging.properties"));
+        //System.setOut(new PrintStream("repaird.log"));
         HelpFormatter h = new HelpFormatter();
         h.printHelp("main", OPTIONS);
         CommandLineParser lineParser = new PosixParser();

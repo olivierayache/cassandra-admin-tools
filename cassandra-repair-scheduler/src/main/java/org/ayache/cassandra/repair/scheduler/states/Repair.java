@@ -6,10 +6,12 @@
 package org.ayache.cassandra.repair.scheduler.states;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -30,8 +32,26 @@ import org.ayache.cassandra.repair.scheduler.RepairTransition;
 public class Repair extends State<RepairContext, Void, RepairInner> {
 
     private final Lock lock = new ReentrantLock();
-    private static final long MAX_TIME_TO_WAIT = TimeUnit.NANOSECONDS.convert(8, TimeUnit.HOURS);
+    private static final long MAX_TIME_TO_WAIT;
 
+    static{
+  
+        Properties properties = new Properties();
+        InputStream resourceAsStream = Repair.class.getResourceAsStream("/config.properties");
+        int time = 8;
+        if (resourceAsStream != null) {
+            try {
+                properties.load(resourceAsStream);
+                time = Integer.valueOf(properties.getProperty("repair.max.time", "8"));
+                resourceAsStream.close();
+            } catch (IOException ex) {
+                Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        MAX_TIME_TO_WAIT = TimeUnit.NANOSECONDS.convert(time, TimeUnit.HOURS);
+
+    }
+    
     public Repair(boolean[] accessor) {
         super(accessor);
     }
