@@ -34,9 +34,9 @@ import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
 public class BackupContext {
 
     private static final ClusterServiceFactory CLUSTER_SERVICE_FACTORY = ClusterServiceFactory.getInstance();
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+    private transient final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
     private final String clusterName;
-    private ScheduledFuture<?> scheduleAtFixedRate;
+    private transient ScheduledFuture<?> scheduleAtFixedRate;
     private Status status;
 
     public static enum Status {
@@ -70,6 +70,13 @@ public class BackupContext {
             }
         }
 
+    }
+
+    /**
+     * Constructor present for serialization
+     */
+    public BackupContext() {
+        this.clusterName = null;
     }
 
     public BackupContext(String clusterName) {
