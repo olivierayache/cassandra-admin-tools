@@ -24,6 +24,7 @@ import org.ayache.cassandra.repair.scheduler.states.RepairContext;
 public class ClusterServiceFactory {
 
     final Map<String, Cluster> clusters = new ConcurrentHashMap<>();
+    private static final Gson GSON = new Gson();
 
     private ClusterServiceFactory() {
     }
@@ -44,24 +45,21 @@ public class ClusterServiceFactory {
             nodeConnector.close();
             throw new IllegalArgumentException("Cluster already exists");
         }
-        RepairContext repairContext = new RepairContext(clusterName, port, 21, 2);
-        repairContext.addNodeConnector(nodeConnector);
-        final Cluster cluster = new Cluster(clusterName, port, repairContext, nodeConnector);
+        final Cluster cluster = new Cluster(clusterName, port, nodeConnector);
+        cluster.init();
         clusters.putIfAbsent(clusterName, cluster);
         saveCluster(cluster);
         return clusterName;
     }
 
-    public void loadCluster(String json) throws IOException {
-        Cluster cluster = new Gson().fromJson(json, Cluster.class);
-        NodeConnector nodeConnector = cluster.getNodeConnector();
-        nodeConnector.connect();
-        cluster.getRepairContext().addNodeConnector(nodeConnector);
+    public void loadCluster(String json) {
+        Cluster cluster = GSON.fromJson(json, Cluster.class);
+        cluster.init();
         clusters.putIfAbsent(cluster.getName(), cluster);
     }
 
-    public void saveCluster(Cluster cluster) throws IOException {
-        String toJson = new Gson().toJson(cluster);
+    public synchronized void saveCluster(Cluster cluster) throws IOException {
+        String toJson = GSON.toJson(cluster);
         File file = new File("data");
         if (!file.exists()){
             file.mkdir();

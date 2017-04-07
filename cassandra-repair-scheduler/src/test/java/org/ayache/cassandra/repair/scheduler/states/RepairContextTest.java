@@ -18,6 +18,7 @@ import org.apache.cassandra.service.StorageServiceMBean;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
 import org.ayache.cassandra.repair.scheduler.NodeConnector;
 import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.model.INodeConnectorRetriever;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -60,7 +61,7 @@ public class RepairContextTest {
     public void testInitNodesToRepair() throws Exception {
         System.out.println("initNodesToRepair");
         RepairContext instance = new RepairContext("Test", 0, 0, 0);
-        NodeConnector mock = Mockito.mock(NodeConnector.class);
+        final NodeConnector mock = Mockito.mock(NodeConnector.class);
         EndpointSnitchInfoMBean esBean = Mockito.mock(EndpointSnitchInfoMBean.class);
         Mockito.when(esBean.getDatacenter(Mockito.anyString())).thenReturn("DC1");
         Mockito.when(mock.getEsProxy()).thenReturn(esBean);
@@ -79,7 +80,22 @@ public class RepairContextTest {
         Mockito.when(serviceMBean.getTokenToEndpointMap()).thenReturn(tokenToEndpoints);
         Mockito.when(mock.getSsProxy()).thenReturn(serviceMBean);
         Mockito.when(mock.getDc()).thenReturn("DC1");
-        instance.addNodeConnector(mock);
+        instance.init(new INodeConnectorRetriever() {
+            @Override
+            public NodeConnector getNodeConnector() {
+                return mock;
+            }
+
+            @Override
+            public NodeConnector getNodeConnector(String hostName) throws IOException {
+                return mock;
+            }
+
+            @Override
+            public Iterable<NodeConnector> iterable() {
+                return Arrays.asList(mock);
+            }
+        });
         Collection<String> expResult = Arrays.asList("127.0.0.1", "127.0.0.5");
         Collection<String> result = instance.initNodesToRepair();
         assertArrayEquals(expResult.toArray(), result.toArray());

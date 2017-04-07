@@ -6,11 +6,9 @@
 package org.ayache.cassandra.repair.scheduler.states;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -21,7 +19,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import org.ayache.automaton.api.IState;
-import org.ayache.cassandra.admin.api.dto.NodeDto;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
 import org.ayache.cassandra.repair.scheduler.NodeChooser;
 import org.ayache.cassandra.repair.scheduler.NodeConnector;
@@ -30,6 +27,7 @@ import org.ayache.cassandra.repair.scheduler.NodeReparator.Status;
 import org.ayache.cassandra.repair.scheduler.RepairAutomaton;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
 import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
+import org.ayache.cassandra.repair.scheduler.model.INodeConnectorRetriever;
 
 /**
  *
@@ -37,7 +35,7 @@ import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
  */
 public class RepairContext {
 
-    private final List<String> nodesToRepair = new ArrayList<>();
+    private final NavigableSet<String> nodesToRepair = new ConcurrentSkipListSet<>();
     private final Set<String> aggregatedNodesToRepair = new ConcurrentSkipListSet<>();
     private final Set<String> nodesToRepairInError = new ConcurrentSkipListSet<>();
     private final Set<String> nodesToRepairInUnknown = new ConcurrentSkipListSet<>();
@@ -56,7 +54,7 @@ public class RepairContext {
         }
 
     };
-    public final transient Map<String, NodeConnector> map = new HashMap<>();
+    private transient INodeConnectorRetriever retriever;
     volatile NodeReparator.Status status = Status.STARTED;
     private final String clusterName;
     private final int jmxPort;
@@ -98,7 +96,7 @@ public class RepairContext {
         aggregatedNodesToRepair.addAll(nodesToRepairInError);
         aggregatedNodesToRepair.addAll(nodesToRepairInUnknown);
         if (aggregatedNodesToRepair.isEmpty()) {
-            NodeConnector connector = map.values().iterator().next();
+            NodeConnector connector = retriever.getNodeConnector();
             nodesToRepair.addAll(new NodeChooser(connector.getSsProxy(), connector.getEsProxy(), connector.getDc(), lastRepairedNode, simult).getNextNodeToRepair());
             aggregatedNodesToRepair.addAll(nodesToRepair);
         }
@@ -118,7 +116,7 @@ public class RepairContext {
      */
     public void clear() {
         if (!nodesToRepair.isEmpty()) {
-            lastRepairedNode = nodesToRepair.get(0);
+            lastRepairedNode = nodesToRepair.first();
         }
         nodesToRepair.clear();
         nodesToRepairInError.clear();
@@ -183,24 +181,17 @@ public class RepairContext {
     }
 
     public void checkJMXConnections() throws IOException, InterruptedException {
-        for (NodeConnector connector : map.values()) {
+        for (NodeConnector connector : retriever.iterable()) {
             connector.getSsProxy().getClusterName();
         }
     }
 
-    public void addNodeConnector(NodeConnector connector) {
-        map.put(connector.getHost(), connector);
+    public void init(INodeConnectorRetriever reriever) {
+        this.retriever = reriever;
     }
 
     public NodeReparator getNodeProbe(String host) throws IOException {
-        if (map.containsKey(host)) {
-            return map.get(host).getNodeReparator();
-        } else {
-            NodeConnector nodeConnector = new NodeConnector(host, jmxPort);
-            NodeReparator nodeProbe = nodeConnector.getNodeReparator();
-            map.put(host, nodeConnector);
-            return nodeProbe;
-        }
+        return retriever.getNodeConnector(host).getNodeReparator();
     }
 
     public void cancelRepairSessions() {
@@ -226,14 +217,6 @@ public class RepairContext {
     
     public IState getState() {
         return automaton.getCurrentState();
-    }
-
-    public Map<String, NodeDto> getNodes() throws IOException {
-        if (!map.isEmpty()) {
-            return map.values().iterator().next().getNodes();
-        } else {
-            return new HashMap<>();
-        }
     }
 
     public Collection<String> getMessages() {

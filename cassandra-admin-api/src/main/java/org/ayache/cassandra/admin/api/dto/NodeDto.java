@@ -26,14 +26,16 @@ public class NodeDto {
     private String dc;
     private boolean repairInProgress;
     private boolean repairInError;
+    private boolean alive;
 
    public static class NodeDtoBuilder {
 
-        public static NodeDto build(String name, String load, String dc) {
+        public static NodeDto build(String name, String load, String dc, boolean alive) {
             NodeDto node = new NodeDto();
             node.name = name;
             node.load = load;
             node.dc = dc;
+            node.alive = alive;
             return node;
         }
 
@@ -52,6 +54,11 @@ public class NodeDto {
     @JsOverlay
     public final String getDC() {
         return dc;
+    }
+
+    @JsOverlay
+    public final boolean isAlive() {
+        return alive;
     }
 
     @JsOverlay

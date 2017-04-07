@@ -7,6 +7,7 @@ package org.ayache.cassandra.repair.scheduler;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,6 +27,7 @@ import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.net.MessagingServiceMBean;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
+import org.ayache.cassandra.repair.scheduler.model.IDeadNodeListener;
 
 /**
  *
@@ -37,7 +39,7 @@ public class NodeConnector {
     private static final String ssObjName = "org.apache.cassandra.db:type=StorageService";
     private static final String esObjName = "org.apache.cassandra.db:type=EndpointSnitchInfo";
     private static final String msObjName = "org.apache.cassandra.net:type=MessagingService";
-    private static final int defaultPort = 7199;
+    private static final int TIME_TO_RETRY = 30000;
     private final String host;
     private final int port;
     private String dc;
@@ -52,7 +54,14 @@ public class NodeConnector {
 
     private transient NodeReparator nodeReparator;
     
+    private transient volatile boolean alive;
+    private transient IDeadNodeListener deadNodeListener;
+    
     private static final ExecutorService ES = Executors.newCachedThreadPool();
+
+    public boolean isAlive() {
+        return alive;
+    }
     
     private static final class ReconnectRunnable implements Runnable{
 
@@ -65,14 +74,19 @@ public class NodeConnector {
         @Override
         public void run() {
             boolean ok = false;
-            while (!ok) {
+            int timeout = TIME_TO_RETRY;
+            while (!ok && timeout > 0) {
                 try {
                     Thread.sleep(2000);
+                    timeout -= 2000;
                     connector.connect();
                     ok = true;
                 } catch (Exception ex) {
-                    Logger.getLogger(NodeConnector.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 2 seconds", ex.getMessage());
+                    Logger.getLogger(NodeConnector.class.getName()).log(Level.INFO, "Unable to connect via JMX to {0}:{1}, will retry in 2 seconds "+connector.toString(), new Object[]{connector.host, Integer.valueOf(connector.port)});
                 }
+            }
+            if (!ok){
+                connector.deadNodeListener.onNodeRemoved(connector.host);
             }
         }
         
@@ -97,6 +111,8 @@ public class NodeConnector {
      *
      * @param host hostname or IP address of the JMX agent
      * @param port TCP port of the remote JMX agent
+     * @param username
+     * @param password
      * @throws IOException on connection failures
      */
     public NodeConnector(String host, int port, String username, String password) throws IOException {
@@ -107,6 +123,10 @@ public class NodeConnector {
         this.username = username;
         this.password = password;
         connect();
+    }
+
+    public void setDeadNodeListener(IDeadNodeListener deadNodeListener) {
+        this.deadNodeListener = deadNodeListener;
     }
 
     /**
@@ -152,11 +172,13 @@ public class NodeConnector {
 
         dc = esProxy.getDatacenter(host);
         nodeReparator = new NodeReparator(host, jmxc, ssProxy);
-
+        alive = true;
+        
         jmxc.addConnectionNotificationListener(new NotificationListener() {
             @Override
             public void handleNotification(Notification notification, Object handback) {
                 if (notification.getType().equals(JMXConnectionNotification.CLOSED) || notification.getType().equals(JMXConnectionNotification.FAILED)) {
+                    alive = false;
                     ES.submit(new ReconnectRunnable(NodeConnector.this));
                 }
             }
@@ -196,9 +218,10 @@ public class NodeConnector {
         Map<String, NodeDto> nodes = new HashMap<>();
         Map<String, String> loadMap = ssProxy.getLoadMap();
         Map<String, String> tokenToEndpointMap = ssProxy.getTokenToEndpointMap();
+        List<String> liveNodes = ssProxy.getLiveNodes();
         for (Map.Entry<String, String> entry : tokenToEndpointMap.entrySet()) {
             String host = entry.getValue();
-            nodes.put(host, NodeDto.NodeDtoBuilder.build(host, loadMap.get(host), esProxy.getDatacenter(host)));
+            nodes.put(host, NodeDto.NodeDtoBuilder.build(host, loadMap.get(host), esProxy.getDatacenter(host), liveNodes.contains(host)));
         }
         return nodes;
     }
