@@ -6,10 +6,13 @@
 package org.ayache.cassandra.repair.scheduler.model;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -17,7 +20,8 @@ import java.util.Map;
  */
 public class JMXBeanModelFactory {
 
-    private static Map<String, BeanHolder> BEAN_MAP = new HashMap<>();
+    private static final Map<String, BeanHolder> BEAN_MAP = new HashMap<>();
+    private static final Map<String, Method> METHODS = new HashMap<>();
 
     private static class BeanHolder{
         Object bean;
@@ -30,6 +34,49 @@ public class JMXBeanModelFactory {
         
     }
     
+    public static final void editBean(final Object bean, final String name, final String value) {
+        try {
+            Method editMethod = METHODS.get(name);
+            if (METHODS.get(name) == null) {
+                Class<? extends Object> aClass = bean.getClass();
+                for (Method m : aClass.getMethods()) {
+                    if (m.getName().toLowerCase().contains(name.toLowerCase()) && m.getName().startsWith("set") && m.getParameterCount() == 1) {
+                        METHODS.put(name, m);
+                        editMethod = m;
+                    }
+                }
+            }
+            if (editMethod == null) {
+                throw new NoSuchMethodError(name);
+            }
+            Object val;
+            if (editMethod.getParameterTypes()[0].isPrimitive()){
+                if (boolean.class == editMethod.getParameterTypes()[0]){
+                    val = Boolean.valueOf(value);
+                }else if (int.class == editMethod.getParameterTypes()[0]){
+                    val = Integer.valueOf(value);
+                }else if (short.class == editMethod.getParameterTypes()[0]){
+                    val = Short.valueOf(value);
+                }else if (long.class == editMethod.getParameterTypes()[0]){
+                    val = Long.valueOf(value);
+                }else if (float.class == editMethod.getParameterTypes()[0]){
+                    val = Float.valueOf(value);
+                }else if (double.class == editMethod.getParameterTypes()[0]){
+                    val = Double.valueOf(value);
+                }else{
+                    throw new UnsupportedOperationException("Only boolean and number types are supported");
+                }
+            }else if (String.class == editMethod.getParameterTypes()[0]){
+                val = value;
+            } else {
+                throw new UnsupportedOperationException("Only String is supported");
+            }
+            editMethod.invoke(bean, val);
+        } catch (SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+            Logger.getLogger(JMXBeanModelFactory.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    } 
+    
     public static final <B, M extends B> M getModel(Class<M> model, final B bean, final String name) {
         BeanHolder result = BEAN_MAP.get(name);
         if (result == null || bean != result.bean) {
@@ -39,7 +86,6 @@ public class JMXBeanModelFactory {
                     try {
                         return method.invoke(bean, args);
                     } catch (Exception exception) {
-//                        System.err.println(method);
                         if (method.getReturnType().isPrimitive()) {
                             if (method.getReturnType().isAssignableFrom(boolean.class)) {
                                 return false;

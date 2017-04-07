@@ -7,6 +7,7 @@ package org.ayache.cassandra.admin.api;
 
 import java.util.Collection;
 import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -28,7 +29,19 @@ public interface INodeService extends DirectRestService{
     
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("/{name}/info")        
-    NodeInfoDto getInfo(@PathParam("name") String name);
+    @Path("/infos/{name}")        
+    NodeInfoDto getInfos(@PathParam("name") String name);
+    
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/infos") 
+    Collection<NodeInfoDto> getInfos();
 
+    @PUT
+    @Path("/configure/{name}/{param}/{value}")        
+    void configure(@PathParam("name") String name, @PathParam("param") String param, @PathParam("value") String value);
+    
+    @PUT
+    @Path("/configure/{param}/{value}")        
+    void configure(@PathParam("param") String param, @PathParam("value") String value);
 }
