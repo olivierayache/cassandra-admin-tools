@@ -12,7 +12,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-    
+    <scm>
+        <connection>scm:git:https://github.com/olivierayache/cassandra-admin-tools.git</connection>
+    </scm>
     <dependencyManagement>
         <dependencies>
             <dependency>
