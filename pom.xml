@@ -13,7 +13,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <scm>
-        <connection>scm:git:https://github.com/olivierayache/cassandra-admin-tools.git</connection>
+        <connection>scm:git:ssh://git@github.com/olivierayache/cassandra-admin-tools.git</connection>
+        <url>https://github.com/olivierayache/cassandra-admin-tools</url>
     </scm>
     <dependencyManagement>
         <dependencies>
