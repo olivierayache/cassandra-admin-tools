@@ -26,6 +26,7 @@ import javax.management.remote.JMXServiceURL;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.apache.cassandra.net.MessagingServiceMBean;
 import org.apache.cassandra.service.StorageServiceMBean;
+import org.ayache.cassandra.admin.INodeFactory;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
 import org.ayache.cassandra.repair.scheduler.model.IDeadNodeListener;
 
@@ -33,18 +34,31 @@ import org.ayache.cassandra.repair.scheduler.model.IDeadNodeListener;
  *
  * @author Ayache
  */
-public class NodeConnector {
+public class NodeConnector extends NodeConnectorProxy implements INodeFactory {
 
-    private static final String fmtUrl = "service:jmx:rmi:///jndi/rmi://[%s]:%d/jmxrmi";
-    private static final String ssObjName = "org.apache.cassandra.db:type=StorageService";
+    public static interface StorageServiceCompatMBean extends StorageServiceMBean {
+
+        int forceRepairAsync(String keyspace, boolean isSequential, boolean isLocal, boolean primaryRange, String... columnFamilies) throws IOException;
+
+    }
+
+    public static class StorageServiceCompat {
+
+        private final StorageServiceMBean bean;
+
+        public StorageServiceCompat(StorageServiceMBean bean) {
+            this.bean = bean;
+        }
+
+        public int forceRepairAsync(String keyspace, boolean isSequential, boolean isLocal, boolean primaryRange, String... columnFamilies) throws IOException {
+            return bean.forceRepairAsync(keyspace, isSequential, isLocal, true, primaryRange, columnFamilies);
+        }
+
+    }
+
     private static final String esObjName = "org.apache.cassandra.db:type=EndpointSnitchInfo";
     private static final String msObjName = "org.apache.cassandra.net:type=MessagingService";
     private static final int TIME_TO_RETRY = 30000;
-    private final String host;
-    private final int port;
-    private String dc;
-    private String username;
-    private String password;
 
     private transient JMXConnector jmxc;
     private transient MBeanServerConnection mbeanServerConn;
@@ -53,24 +67,29 @@ public class NodeConnector {
     private transient EndpointSnitchInfoMBean esProxy;
 
     private transient NodeReparator nodeReparator;
-    
+
     private transient volatile boolean alive;
     private transient IDeadNodeListener deadNodeListener;
-    
+
     private static final ExecutorService ES = Executors.newCachedThreadPool();
 
     public boolean isAlive() {
         return alive;
     }
-    
-    private static final class ReconnectRunnable implements Runnable{
+
+    @Override
+    public INodeChooser getNodeChooser(String lastRepairedNode, boolean simult) throws IOException {
+        return new NodeChooser(ssProxy, esProxy, dc, lastRepairedNode, simult);
+    }
+
+    private static final class ReconnectRunnable implements Runnable {
 
         private final NodeConnector connector;
 
         public ReconnectRunnable(NodeConnector connector) {
             this.connector = connector;
         }
-        
+
         @Override
         public void run() {
             boolean ok = false;
@@ -82,14 +101,14 @@ public class NodeConnector {
                     connector.connect();
                     ok = true;
                 } catch (Exception ex) {
-                    Logger.getLogger(NodeConnector.class.getName()).log(Level.INFO, "Unable to connect via JMX to {0}:{1}, will retry in 2 seconds "+connector.toString(), new Object[]{connector.host, Integer.valueOf(connector.port)});
+                    Logger.getLogger(NodeConnector.class.getName()).log(Level.INFO, "Unable to connect via JMX to {0}:{1}, will retry in 2 seconds " + connector.toString(), new Object[]{connector.host, Integer.valueOf(connector.port)});
                 }
             }
-            if (!ok){
+            if (!ok) {
                 connector.deadNodeListener.onNodeRemoved(connector.host);
             }
         }
-        
+
     }
 
     /**
@@ -100,8 +119,7 @@ public class NodeConnector {
      * @throws IOException on connection failures
      */
     public NodeConnector(String host, int port) throws IOException {
-        this.host = host;
-        this.port = port;
+        super(host, port);
         connect();
     }
 
@@ -116,12 +134,7 @@ public class NodeConnector {
      * @throws IOException on connection failures
      */
     public NodeConnector(String host, int port, String username, String password) throws IOException {
-        assert username != null && !username.isEmpty() && password != null && !password.isEmpty() : "neither username nor password can be blank";
-
-        this.host = host;
-        this.port = port;
-        this.username = username;
-        this.password = password;
+        super(host, port, username, password);
         connect();
     }
 
@@ -173,7 +186,7 @@ public class NodeConnector {
         dc = esProxy.getDatacenter(host);
         nodeReparator = new NodeReparator(host, jmxc, ssProxy);
         alive = true;
-        
+
         jmxc.addConnectionNotificationListener(new NotificationListener() {
             @Override
             public void handleNotification(Notification notification, Object handback) {
@@ -201,12 +214,12 @@ public class NodeConnector {
     public MessagingServiceMBean getMsProxy() {
         return msProxy;
     }
-    
+
     public EndpointSnitchInfoMBean getEsProxy() {
         return esProxy;
     }
 
-    public NodeReparator getNodeReparator() {
+    public INodeReparator getNodeReparator() {
         return nodeReparator;
     }
 
@@ -224,9 +237,5 @@ public class NodeConnector {
             nodes.put(host, NodeDto.NodeDtoBuilder.build(host, loadMap.get(host), esProxy.getDatacenter(host), liveNodes.contains(host)));
         }
         return nodes;
-    }
-
-    public String getHost() {
-        return host;
     }
 }

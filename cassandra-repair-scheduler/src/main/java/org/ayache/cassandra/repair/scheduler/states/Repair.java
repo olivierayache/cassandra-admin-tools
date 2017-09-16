@@ -21,7 +21,7 @@ import java.util.logging.Logger;
 import org.ayache.automaton.api.IStateRetriever;
 import org.ayache.automaton.api.OutGoingTransitions;
 import org.ayache.automaton.api.State;
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
 
 /**
@@ -73,35 +73,35 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
         lock.lock();
         try {
             Condition condition = lock.newCondition();
-            List<NodeReparator> nodeReparators = new LinkedList<>();
+            List<INodeReparator> nodeReparators = new LinkedList<>();
             List<String> keyspacesToRepair = Collections.EMPTY_LIST;
             for (String nodeToRepair : context.getNodesToRepair()) {
                 try {
-                    NodeReparator nodeProbe = context.getNodeProbe(nodeToRepair);
+                    INodeReparator nodeProbe = context.getNodeProbe(nodeToRepair);
                     if (keyspacesToRepair.isEmpty()) {
                         keyspacesToRepair = nodeProbe.getKeyspaces();
                     }
                     nodeReparators.add(nodeProbe);
                 } catch (IOException ex) {
                     Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
-                    context.addStatus(NodeReparator.Status.JMX_ERROR).addMessage(ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
-                    keyspacesToRepair.clear();
+                    context.addStatus(INodeReparator.Status.JMX_ERROR).addMessage(ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
+                    keyspacesToRepair = Collections.EMPTY_LIST;
                 }
             }
             
             long timeout = MAX_TIME_TO_WAIT;
             
             for (String keyspace : keyspacesToRepair) {
-                List<NodeReparator> reparatorsToWait = new ArrayList<>();
-                for (NodeReparator nodeReparator : nodeReparators) {
+                List<INodeReparator> reparatorsToWait = new ArrayList<>();
+                for (INodeReparator nodeReparator : nodeReparators) {
                     try {
-                        long forceRepairAsync = nodeReparator.forceRepairAsync(context, lock, condition, System.out, keyspace, true, context.repairLocalDCOnly, true);
+                        long forceRepairAsync = nodeReparator.forceRepairAsync(context, lock, condition, System.out, keyspace, true, true);
                         if (forceRepairAsync>0){
                             reparatorsToWait.add(nodeReparator);
                         }
                     } catch (IOException ex) {
                         Logger.getLogger(Repair.class.getName()).log(Level.SEVERE, null, ex);
-                        context.error(nodeReparator.host, NodeReparator.Status.JMX_UNKWOWN, ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
+                        context.error(nodeReparator.getHost(), INodeReparator.Status.JMX_UNKWOWN, ex.getMessage()).activate(RepairTransition.REPAIR_FAILED);
                     }
                 }
                 
@@ -111,13 +111,13 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
                         break;
                     }
                 } catch (InterruptedException ex) {
-                    for (NodeReparator nodeReparator : nodeReparators) {
+                    for (INodeReparator nodeReparator : nodeReparators) {
                         nodeReparator.cancel();
                     }
                     context.addMessage("Waiting for repair cancelled").activate(RepairTransition.CANCEL);
                     return null;
                 } finally {
-                    for (NodeReparator nodeReparator : nodeReparators) {
+                    for (INodeReparator nodeReparator : nodeReparators) {
                         nodeReparator.removeListeners();
                     }
                 }
@@ -131,7 +131,7 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
         return null;
     }
 
-    private long waitForRepairs(RepairContext context, Condition condition, List<NodeReparator> nodeReparators, long timeout) throws InterruptedException {
+    private long waitForRepairs(RepairContext context, Condition condition, List<INodeReparator> nodeReparators, long timeout) throws InterruptedException {
         if (nodeReparators.isEmpty()){
             return timeout;
         }
@@ -139,7 +139,7 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
         boolean finished = false;
         while (!finished) {
             if ((remaining = condition.awaitNanos(remaining)) <= 0) { // prevents from waiting indefinitly
-                for (NodeReparator nodeReparator : nodeReparators) {
+                for (INodeReparator nodeReparator : nodeReparators) {
                     if (!nodeReparator.finished()) {
                         nodeReparator.repairTimeout(context);
                     }
@@ -147,7 +147,7 @@ public class Repair extends State<RepairContext, Void, RepairInner> {
                 return remaining;
             } else {
                 boolean endRepair = true;
-                for (NodeReparator nodeReparator : nodeReparators) {
+                for (INodeReparator nodeReparator : nodeReparators) {
                     nodeReparator.checkForErrors(context);
                     endRepair &= nodeReparator.finished();
                 }

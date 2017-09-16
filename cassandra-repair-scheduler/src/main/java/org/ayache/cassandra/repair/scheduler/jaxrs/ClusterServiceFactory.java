@@ -13,7 +13,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
 import org.ayache.cassandra.admin.backup.BackupContext;
-import org.ayache.cassandra.repair.scheduler.NodeConnector;
+import org.ayache.cassandra.admin.INodeConnector;
+import org.ayache.cassandra.repair.scheduler.NodeConnectorProxy;
 import org.ayache.cassandra.repair.scheduler.model.Cluster;
 import org.ayache.cassandra.repair.scheduler.states.RepairContext;
 
@@ -39,10 +40,9 @@ public class ClusterServiceFactory {
     }
 
     public String addCluster(String address, int port) throws IOException {
-        NodeConnector nodeConnector = new NodeConnector(address, port);
-        String clusterName = nodeConnector.getSsProxy().getClusterName();
+        NodeConnectorProxy nodeConnector = new NodeConnectorProxy(address, port);
+        String clusterName = nodeConnector.getClusterName();
         if (clusters.containsKey(clusterName)) {
-            nodeConnector.close();
             throw new IllegalArgumentException("Cluster already exists");
         }
         final Cluster cluster = new Cluster(clusterName, port, nodeConnector);
@@ -85,7 +85,7 @@ public class ClusterServiceFactory {
         return clusters.get(clusterName).getNodeConnector().getNodes();
     }
 
-    public NodeConnector getNodeConnector(String clusterName, String hostName) throws IOException {
+    public INodeConnector getNodeConnector(String clusterName, String hostName) throws IOException {
         return clusters.get(clusterName).getNodeConnector(hostName);
     }
 

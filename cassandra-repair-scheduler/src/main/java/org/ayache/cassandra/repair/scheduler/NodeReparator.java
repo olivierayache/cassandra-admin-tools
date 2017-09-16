@@ -7,6 +7,9 @@ package org.ayache.cassandra.repair.scheduler;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
@@ -24,15 +27,11 @@ import org.ayache.cassandra.repair.scheduler.states.RepairContext;
  *
  * @author Ayache
  */
-public class NodeReparator implements NotificationListener {
-
-    public static enum Status {
-        STARTED, SESSION_SUCCESS, SESSION_FAILED, FINISHED, JMX_ERROR, JMX_UNKWOWN
-    }
+public class NodeReparator implements NotificationListener, INodeReparator {
 
     public final String host;
     private final JMXConnector jmxc;
-    public final StorageServiceMBean ssProxy;
+    public NodeConnector.StorageServiceCompatMBean ssProxy;
     private volatile boolean success = true;
     private volatile boolean finished;
     private volatile String errorMessage;
@@ -49,38 +48,69 @@ public class NodeReparator implements NotificationListener {
      *
      * @param host
      * @param jmxc
-     * @param ssProxy
+     * @param ssProx
      */
-    public NodeReparator(String host, JMXConnector jmxc, StorageServiceMBean ssProxy) {
+    public NodeReparator(String host, JMXConnector jmxc, StorageServiceMBean ssProx) {
         this.host = host;
         this.jmxc = jmxc;
-        this.ssProxy = ssProxy;
+        try {
+            final NodeConnector.StorageServiceCompat bean = (NodeConnector.StorageServiceCompat) Class.forName(NodeConnector.StorageServiceCompat.class.getName()).getConstructor(ssProx.getClass().getInterfaces()[0]).newInstance(ssProx);
+
+            InvocationHandler invocationHandler = new InvocationHandler() {
+
+                @Override
+                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                    Object ret;
+                    try {
+                        if (args == null) {
+                            ret = method.invoke(ssProx);
+                        } else {
+                            ret = method.invoke(ssProx, args);
+                        }
+                        return ret;
+                    } catch (Throwable e) {
+                        return bean.getClass().getMethod(method.getName(), method.getParameterTypes()).invoke(bean, args);
+                    }
+
+                }
+            };
+            this.ssProxy = (NodeConnector.StorageServiceCompatMBean) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{NodeConnector.StorageServiceCompatMBean.class}, invocationHandler);
+        } catch (Exception ex) {
+            Logger.getLogger(NodeReparator.class.getName()).log(Level.SEVERE, null, ex);
+            this.ssProxy = null;
+        }
+
     }
 
     public boolean succeed() {
         return success;
     }
 
+    @Override
     public boolean finished() {
         return finished;
     }
 
+    @Override
     public void checkForErrors(RepairContext context) {
         if (errorMessage != null) {
             context.error(host, Status.JMX_UNKWOWN, errorMessage).activate(RepairTransition.REPAIR_FAILED);
         }
     }
 
+    @Override
     public void repairTimeout(RepairContext context) {
         ssProxy.forceTerminateAllRepairSessions();
         context.error(host, NodeReparator.Status.JMX_UNKWOWN, "Repair duration exceeds 8 hours. You should check server log for repair status").activate(RepairTransition.REPAIR_FAILED);
     }
 
+    @Override
     public void cancel() {
         ssProxy.forceTerminateAllRepairSessions();
 
     }
 
+    @Override
     public void removeListeners() {
         try {
             ssProxy.removeNotificationListener(this);
@@ -90,35 +120,44 @@ public class NodeReparator implements NotificationListener {
         }
     }
 
-    public long forceRepairAsync(final RepairContext context, final Lock lock, final Condition condition, final PrintStream out, final String tableName, boolean isSequential, boolean isLocal, boolean primaryRange, String... columnFamilies) throws IOException {
+    @Override
+    public long forceRepairAsync(final RepairContext context, final Lock lock, final Condition condition, final PrintStream out, final String tableName, boolean isSequential, boolean primaryRange, String... columnFamilies) throws IOException {
 
         this.out = out;
         this.keyspace = tableName;
-        this.repairContext = context;
+        this.repairContext = (RepairContext) context;
         this.condition = condition;
         this.lock = lock;
         finished = false;
         success = true;
+        errorMessage = null;
 
         try {
             jmxc.addConnectionNotificationListener(this, null, null);
             ssProxy.addNotificationListener(this, null, null);
-            cmd = ssProxy.forceRepairAsync(keyspace, isSequential, isLocal, isLocal ? false : primaryRange, columnFamilies);
+            cmd = ssProxy.forceRepairAsync(keyspace, isSequential, repairContext.repairLocalDCOnly, repairContext.repairLocalDCOnly ? false : primaryRange, columnFamilies);
             if (cmd == 0) {
                 String message = String.format("[%s] %s Nothing to repair for keyspace '%s'", format.format(System.currentTimeMillis()), host, keyspace);
                 out.println(message);
                 repairContext.addMessage(message);
             }
             return cmd;
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new IOException(e);
         }
     }
 
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
     public List<String> getKeyspaces() throws IOException {
         return ssProxy.getKeyspaces();
     }
 
+    @Override
     public void handleNotification(Notification notification, Object handback) {
         if ("repair".equals(notification.getType())) {
             int[] status = (int[]) notification.getUserData();
@@ -147,7 +186,7 @@ public class NodeReparator implements NotificationListener {
             }
         } else if (JMXConnectionNotification.NOTIFS_LOST.equals(notification.getType())) {
             String message = String.format("[%s] %s Lost notification. You should check server log for repair status of keyspace %s",
-                    format.format(notification.getTimeStamp()),host,
+                    format.format(notification.getTimeStamp()), host,
                     keyspace);
             out.println(message);
             success = false;
@@ -162,7 +201,7 @@ public class NodeReparator implements NotificationListener {
         } else if (JMXConnectionNotification.FAILED.equals(notification.getType())
                 || JMXConnectionNotification.CLOSED.equals(notification.getType())) {
             String message = String.format("[%s] %s JMX connection closed. You should check server log for repair status of keyspace %s"
-                    + "(Subsequent keyspaces are not going to be repaired).",format.format(notification.getTimeStamp()),host,
+                    + "(Subsequent keyspaces are not going to be repaired).", format.format(notification.getTimeStamp()), host,
                     keyspace);
             out.println(message);
             success = false;

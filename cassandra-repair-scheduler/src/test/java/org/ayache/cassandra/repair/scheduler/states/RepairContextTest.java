@@ -14,8 +14,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
-import org.apache.cassandra.service.StorageServiceMBean;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
+import org.ayache.cassandra.repair.scheduler.INodeChooser;
+import org.ayache.cassandra.repair.scheduler.NodeChooser;
 import org.ayache.cassandra.repair.scheduler.NodeConnector;
 import org.ayache.cassandra.repair.scheduler.NodeReparator;
 import org.ayache.cassandra.repair.scheduler.model.INodeConnectorRetriever;
@@ -26,6 +27,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /**
  *
@@ -65,7 +68,7 @@ public class RepairContextTest {
         EndpointSnitchInfoMBean esBean = Mockito.mock(EndpointSnitchInfoMBean.class);
         Mockito.when(esBean.getDatacenter(Mockito.anyString())).thenReturn("DC1");
         Mockito.when(mock.getEsProxy()).thenReturn(esBean);
-        StorageServiceMBean serviceMBean = Mockito.mock(StorageServiceMBean.class);
+        NodeConnector.StorageServiceCompatMBean serviceMBean = Mockito.mock(NodeConnector.StorageServiceCompatMBean.class);
         List<String> nodes = Arrays.asList("127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6", "127.0.0.7", "127.0.0.8", "127.0.0.9");
         Map<InetAddress, Float> ownership = new HashMap<>();
         Map<String, String> tokenToEndpoints = new LinkedHashMap<>();
@@ -90,10 +93,11 @@ public class RepairContextTest {
             public NodeConnector getNodeConnector(String hostName) throws IOException {
                 return mock;
             }
-
+        });
+        Mockito.when(mock.getNodeChooser(Mockito.any(), Mockito.anyBoolean())).thenAnswer(new Answer<INodeChooser>() {
             @Override
-            public Iterable<NodeConnector> iterable() {
-                return Arrays.asList(mock);
+            public INodeChooser answer(InvocationOnMock invocation) throws Throwable {
+                return new NodeChooser(serviceMBean, esBean, mock.getDc(), null, true);
             }
         });
         Collection<String> expResult = Arrays.asList("127.0.0.1", "127.0.0.5");

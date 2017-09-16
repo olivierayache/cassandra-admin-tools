@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.ayache.cassandra.repair.scheduler.NodeConnector;
 import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
 
 /**
@@ -50,13 +51,13 @@ public class BackupContext {
             try {
                 for (String host : CLUSTER_SERVICE_FACTORY.getNodes(clusterName).keySet()) {
                     try {
-                        CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host).getSsProxy().takeSnapshot(host + "a");
-                        CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host).getSsProxy().clearSnapshot(host + "b");
+                        ((NodeConnector)CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host)).getSsProxy().takeSnapshot(host + "a");
+                        ((NodeConnector)CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host)).getSsProxy().clearSnapshot(host + "b");
                         System.out.println("Last snapshot ok for node " + host);
                     } catch (IOException e) {
                         if (e.getMessage().contains("already exists")) {
-                            CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host).getSsProxy().takeSnapshot(host + "b");
-                            CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host).getSsProxy().clearSnapshot(host + "a");
+                            ((NodeConnector)CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host)).getSsProxy().takeSnapshot(host + "b");
+                            ((NodeConnector)CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host)).getSsProxy().clearSnapshot(host + "a");
                             System.out.println("Last snapshot ok for node " + host);
                         } else {
                             throw e;
@@ -94,8 +95,8 @@ public class BackupContext {
         if (scheduleAtFixedRate != null) {
             try {
                 for (String host : CLUSTER_SERVICE_FACTORY.getNodes(clusterName).keySet()) {
-                    CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host).getSsProxy().clearSnapshot(host + "a");
-                    CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host).getSsProxy().clearSnapshot(host + "b");
+                    ((NodeConnector)CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host)).getSsProxy().clearSnapshot(host + "a");
+                    ((NodeConnector)CLUSTER_SERVICE_FACTORY.getNodeConnector(clusterName, host)).getSsProxy().clearSnapshot(host + "b");
                 }
             } catch (IOException ex) {
                 Logger.getLogger(BackupContext.class.getName()).log(Level.SEVERE, null, ex);

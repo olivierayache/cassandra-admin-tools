@@ -19,11 +19,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import org.ayache.automaton.api.IState;
+import org.ayache.cassandra.admin.INodeFactory;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
-import org.ayache.cassandra.repair.scheduler.NodeChooser;
-import org.ayache.cassandra.repair.scheduler.NodeConnector;
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
-import org.ayache.cassandra.repair.scheduler.NodeReparator.Status;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator.Status;
 import org.ayache.cassandra.repair.scheduler.RepairAutomaton;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
 import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
@@ -54,15 +53,15 @@ public class RepairContext {
         }
 
     };
-    private transient INodeConnectorRetriever retriever;
-    volatile NodeReparator.Status status = Status.STARTED;
+    private transient INodeConnectorRetriever<INodeFactory> retriever;
+    volatile INodeReparator.Status status = Status.STARTED;
     private final String clusterName;
     private final int jmxPort;
     int hourToBegin;
     int lastHourToBegin;
     int minutesToBegin;
     int lastMinutesToBegin;
-    boolean repairLocalDCOnly;
+    public boolean repairLocalDCOnly;
     boolean simult = true;
     private final transient ExecutorService executorService = Executors.newFixedThreadPool(1);
     private volatile transient Future currentTask;
@@ -89,15 +88,15 @@ public class RepairContext {
     /**
      * Retrieve list of nodes to repair. If errors occurs on previous sessions the list will contain these nodes.
      * @return list of nodes to repair
-     * @throws IOException 
+     * @throws IOException
      */
     public Collection<String> initNodesToRepair() throws IOException {
         aggregatedNodesToRepair.clear();
         aggregatedNodesToRepair.addAll(nodesToRepairInError);
         aggregatedNodesToRepair.addAll(nodesToRepairInUnknown);
         if (aggregatedNodesToRepair.isEmpty()) {
-            NodeConnector connector = retriever.getNodeConnector();
-            nodesToRepair.addAll(new NodeChooser(connector.getSsProxy(), connector.getEsProxy(), connector.getDc(), lastRepairedNode, simult).getNextNodeToRepair());
+            INodeFactory connector = retriever.getNodeConnector();
+            nodesToRepair.addAll(connector.getNodeChooser(lastRepairedNode, simult).getNextNodeToRepair());
             aggregatedNodesToRepair.addAll(nodesToRepair);
         }
         return aggregatedNodesToRepair;
@@ -130,7 +129,7 @@ public class RepairContext {
      * @param messages additional messages on error causes
      * @return the context
      */
-    public RepairContext error(String host, NodeReparator.Status status, String... messages) {
+    public RepairContext error(String host, INodeReparator.Status status, String... messages) {
         final ErrorInfoAggregator errorInfoAggregator = new ErrorInfoAggregator(host, status, messages);
         nodesToRepairInFailure.put(host, errorInfoAggregator);
         addMessage(errorInfoAggregator.toString());
@@ -176,21 +175,21 @@ public class RepairContext {
         return this;
     }
 
-    public NodeReparator.Status getStatus() {
+    public INodeReparator.Status getStatus() {
         return status;
     }
 
-    public void checkJMXConnections() throws IOException, InterruptedException {
-        for (NodeConnector connector : retriever.iterable()) {
-            connector.getSsProxy().getClusterName();
-        }
-    }
+//    public void checkJMXConnections() throws IOException, InterruptedException {
+//        for (NodeConnector connector : retriever.iterable()) {
+//            connector.getSsProxy().getClusterName();
+//        }
+//    }
 
-    public void init(INodeConnectorRetriever reriever) {
+    public void init(INodeConnectorRetriever<INodeFactory> reriever) {
         this.retriever = reriever;
     }
 
-    public NodeReparator getNodeProbe(String host) throws IOException {
+    public INodeReparator getNodeProbe(String host) throws IOException {
         return retriever.getNodeConnector(host).getNodeReparator();
     }
 
@@ -262,9 +261,15 @@ public class RepairContext {
         }
     }
 
-    void save() throws IOException {
+    public void save() throws IOException {
         ClusterServiceFactory.getInstance().saveCluster(clusterName);
     }
+
+    public Status status() {
+        return status;
+    }
+    
+    
 
     private abstract static class ActivatorRunnable implements Runnable {
 

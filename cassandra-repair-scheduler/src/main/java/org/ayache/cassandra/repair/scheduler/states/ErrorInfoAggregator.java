@@ -8,7 +8,7 @@ package org.ayache.cassandra.repair.scheduler.states;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Objects;
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
 
 /**
  *
@@ -17,12 +17,12 @@ import org.ayache.cassandra.repair.scheduler.NodeReparator;
 public class ErrorInfoAggregator {
 
     private final String host;
-    private final NodeReparator.Status status;
+    private final INodeReparator.Status status;
     private final String[] message;
     private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss,SSS");
     private final long timeStamp;
 
-    public ErrorInfoAggregator(String host, NodeReparator.Status status, String... message) {
+    public ErrorInfoAggregator(String host, INodeReparator.Status status, String... message) {
         this.host = host;
         this.status = status;
         this.message = message;
@@ -33,7 +33,7 @@ public class ErrorInfoAggregator {
         return host;
     }
 
-    public NodeReparator.Status getStatus() {
+    public INodeReparator.Status getStatus() {
         return status;
     }
 

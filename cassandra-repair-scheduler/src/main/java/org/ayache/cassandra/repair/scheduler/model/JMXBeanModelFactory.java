@@ -9,10 +9,14 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanServerInvocationHandler;
 
 /**
  *
@@ -40,7 +44,7 @@ public class JMXBeanModelFactory {
             if (METHODS.get(name) == null) {
                 Class<? extends Object> aClass = bean.getClass();
                 for (Method m : aClass.getMethods()) {
-                    if (m.getName().toLowerCase().contains(name.toLowerCase()) && m.getName().startsWith("set") && m.getParameterCount() == 1) {
+                    if (m.getName().toLowerCase().substring(3).equals(name.toLowerCase()) && m.getName().startsWith("set") && m.getParameterCount() == 1) {
                         METHODS.put(name, m);
                         editMethod = m;
                     }
@@ -80,9 +84,24 @@ public class JMXBeanModelFactory {
     public static final <B, M extends B> M getModel(Class<M> model, final B bean, final String name) {
         BeanHolder result = BEAN_MAP.get(name);
         if (result == null || bean != result.bean) {
-            Object newProxyInstance = Proxy.newProxyInstance(JMXBeanModelFactory.class.getClassLoader(), new Class[]{model}, new InvocationHandler() {
+            List<String> editables = new ArrayList<>();
+            try {
+                MBeanServerInvocationHandler handler = (javax.management.MBeanServerInvocationHandler) Proxy.getInvocationHandler(bean);
+                MBeanAttributeInfo[] attributes = handler.getMBeanServerConnection().getMBeanInfo(handler.getObjectName()).getAttributes();
+                for (MBeanAttributeInfo attribute : attributes) {
+                    if (attribute.isWritable()) {
+                        editables.add(attribute.getName());
+                    }
+                }
+            } catch (Exception ex) {
+                Logger.getLogger(JMXBeanModelFactory.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            Object newProxyInstance = Proxy.newProxyInstance(model.getClassLoader(), new Class[]{model}, new InvocationHandler() {
                 @Override
                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                    if (method.getName().equals("getEditables")) {
+                        return editables;
+                    }
                     try {
                         return method.invoke(bean, args);
                     } catch (Exception exception) {

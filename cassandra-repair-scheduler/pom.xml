@@ -30,7 +30,7 @@
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jackson-provider</artifactId>
         </dependency>
-<!--        <dependency>
+        <!--        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
             <version>1.2.1</version>
@@ -94,6 +94,53 @@
     <build>
         <plugins>
             
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.0.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies-cassandra</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/cassandralibs</outputDirectory>
+                            <!--<overWriteReleases>false</overWriteReleases>-->
+                            <!--<overWriteSnapshots>false</overWriteSnapshots>-->
+                            <!--<overWriteIfNewer>true</overWriteIfNewer>-->
+                            <artifactItems>
+                                <artifactItem>
+                                    <artifactId>cassandra-all</artifactId>
+                                    <groupId>org.apache.cassandra</groupId>
+                                    <version>1.2.19</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <artifactId>cassandra-all</artifactId>
+                                    <groupId>org.apache.cassandra</groupId>
+                                    <version>2.0.17</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <artifactId>cassandra-all</artifactId>
+                                    <groupId>org.apache.cassandra</groupId>
+                                    <version>2.1.18</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <artifactId>cassandra-all</artifactId>
+                                    <groupId>org.apache.cassandra</groupId>
+                                    <version>2.2.10</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <artifactId>cassandra-all</artifactId>
+                                    <groupId>org.apache.cassandra</groupId>
+                                    <version>3.0.14</version>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -206,6 +253,14 @@
                         </goals>
                         <configuration>
                             <dataSet>
+                                <data>
+                                    <src>${project.build.directory}/cassandralibs</src>
+                                    <type>directory</type>
+                                    <mapper>
+                                        <type>perm</type>
+                                        <prefix>/usr/share/${artifactId}/cassandralibs</prefix>
+                                    </mapper>
+                                </data>                                
                                 <data>
                                     <src>${project.build.directory}/lib</src>
                                     <type>directory</type>

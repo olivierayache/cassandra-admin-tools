@@ -6,5 +6,5 @@ After=network.target
 WorkingDirectory=/var/lib/${artifactId}
 EnvironmentFile=/etc/default/${artifactId}
 Type=simple
-ExecStart=/usr/bin/java ${EXTRA_JAVA_OPTS} -jar /usr/share/${artifactId}/${project.build.finalName}.jar -jh ${JAXRS_HOST} -jp ${JAXRS_PORT}
+ExecStart=/usr/bin/java -Dcassandra.lib.directory=/usr/share/${artifactId}/cassandralibs/ ${EXTRA_JAVA_OPTS} -jar /usr/share/${artifactId}/${project.build.finalName}.jar -jh ${JAXRS_HOST} -jp ${JAXRS_PORT}
 Restart=on-failure

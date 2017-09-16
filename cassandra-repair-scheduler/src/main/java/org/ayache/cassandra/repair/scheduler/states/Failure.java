@@ -1,4 +1,4 @@
-/*
+ /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 import org.ayache.automaton.api.IStateRetriever;
 import org.ayache.automaton.api.OutGoingTransitions;
 import org.ayache.automaton.api.State;
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
 
 /**
@@ -37,7 +37,7 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
     @Override
     public Object execute(RepairContext p) {
 
-        NodeReparator.Status status = p.status;
+        INodeReparator.Status status = p.status();
 
         //Retrieve nodes in failure
         for (ErrorInfoAggregator aggregator : p.getNodesToRepairInFailure()) {
@@ -45,7 +45,7 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
             switch (aggregator.getStatus()) {
                 //Repair will be automatically reschedule later
                 case SESSION_FAILED:
-                    status = NodeReparator.Status.SESSION_FAILED;
+                    status = INodeReparator.Status.SESSION_FAILED;
                     if (nbRetry == 0) {
                         p.addNodeInUnknownError(aggregator.getHost());
                     } else {
@@ -96,7 +96,7 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
                 while (!ok) {
                     try {
                         Thread.sleep(10000);
-                        p.checkJMXConnections();
+//                        p.checkJMXConnections();
                         ok = true;
                     } catch (Exception ex) {
                         Logger.getLogger(Failure.class.getName()).log(Level.INFO, "Unable to connect via JMX, will retry in 10 seconds", ex.getMessage());

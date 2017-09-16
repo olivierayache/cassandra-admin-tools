@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 import org.ayache.automaton.api.IStateRetriever;
 import org.ayache.automaton.api.OutGoingTransitions;
 import org.ayache.automaton.api.State;
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
 
 /**
@@ -85,7 +85,7 @@ public class RepairReschedule extends State<RepairContext, Void, RepairReschedul
                     time = System.currentTimeMillis();
                 }
             }
-            context.addStatus(NodeReparator.Status.STARTED).activate(RepairTransition.WAKE_UP);
+            context.addStatus(INodeReparator.Status.STARTED).activate(RepairTransition.WAKE_UP);
         } catch (InterruptedException ex) {
             Logger.getLogger(RepairReschedule.class.getName()).log(Level.SEVERE, null, ex);
             context.addMessage("Waiting for wake up cancelled").activate(RepairTransition.CANCEL);

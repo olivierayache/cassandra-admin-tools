@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import org.ayache.automaton.api.IStateRetriever;
 import org.ayache.automaton.api.OutGoingTransitions;
 import org.ayache.automaton.api.State;
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
 import org.ayache.cassandra.repair.scheduler.RepairTransition;
 
 /**
@@ -41,7 +41,7 @@ public class Init extends State<RepairContext, Void, InitInner> {
             }
         } catch (Exception ex) {
             Logger.getLogger(Init.class.getName()).log(Level.SEVERE, null, ex);
-            context.addStatus(NodeReparator.Status.JMX_ERROR).activate(RepairTransition.REPAIR_FAILED);
+            context.addStatus(INodeReparator.Status.JMX_ERROR).activate(RepairTransition.REPAIR_FAILED);
         }
         return null;
     }

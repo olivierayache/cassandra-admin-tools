@@ -21,7 +21,7 @@ import org.apache.cassandra.service.StorageServiceMBean;
  *
  * @author Ayache
  */
-public class NodeChooser {
+public class NodeChooser implements INodeChooser {
 
     private final String lastRepairedNode;
     private final boolean supportSimultaneousRepair;
@@ -94,6 +94,7 @@ public class NodeChooser {
      *
      * @return the list of nodes to repair
      */
+    @Override
     public Collection<String> getNextNodeToRepair() throws IOException {
         boolean found = false;
         Logger.getLogger(NodeChooser.class.getName()).info("Last Repaired Node :" + lastRepairedNode);

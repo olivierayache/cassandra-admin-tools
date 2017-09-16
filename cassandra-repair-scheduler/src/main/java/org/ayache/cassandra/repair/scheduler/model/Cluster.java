@@ -15,7 +15,8 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.ayache.cassandra.admin.api.dto.NodeDto;
 import org.ayache.cassandra.admin.backup.BackupContext;
-import org.ayache.cassandra.repair.scheduler.NodeConnector;
+import org.ayache.cassandra.admin.INodeFactory;
+import org.ayache.cassandra.repair.scheduler.NodeConnectorProxy;
 import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
 import org.ayache.cassandra.repair.scheduler.states.RepairContext;
 
@@ -25,14 +26,14 @@ import org.ayache.cassandra.repair.scheduler.states.RepairContext;
  */
 @XmlRootElement()
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Cluster implements IDeadNodeListener, INodeConnectorRetriever{
+public class Cluster implements IDeadNodeListener, INodeConnectorRetriever {
 
     private final String name;
     private final int port;
     private final RepairContext repairContext;
     private final BackupContext backupContext;
-    private NodeConnector nodeConnector;
-    private transient final Map<String, NodeConnector> map = new ConcurrentHashMap<>();
+    private NodeConnectorProxy nodeConnector;
+    private transient final Map<String, NodeConnectorProxy> map = new ConcurrentHashMap<>();
 
     /**
      * Constructor present for serialization
@@ -51,7 +52,7 @@ public class Cluster implements IDeadNodeListener, INodeConnectorRetriever{
      * @param port
      * @param nodeConnector 
      */
-    public Cluster(String name, int port, NodeConnector nodeConnector) {
+    public Cluster(String name, int port, NodeConnectorProxy nodeConnector) {
         this.name = name;
         this.port = port;
         this.repairContext = new RepairContext(name, port, 21, 2);
@@ -60,9 +61,9 @@ public class Cluster implements IDeadNodeListener, INodeConnectorRetriever{
         addNodeConnector(nodeConnector);
     }
 
-    private void addNodeConnector(NodeConnector nodeConnector) {
+    private void addNodeConnector(NodeConnectorProxy nodeConnector) {
         map.putIfAbsent(nodeConnector.getHost(), nodeConnector);
-        nodeConnector.setDeadNodeListener(this);
+        nodeConnector.getProxy().setDeadNodeListener(this);
     }
 
     /**
@@ -94,9 +95,9 @@ public class Cluster implements IDeadNodeListener, INodeConnectorRetriever{
      * @return 
      */
     @Override
-    public NodeConnector getNodeConnector() {
-        nodeConnector = nodeConnector.isAlive() ? nodeConnector : map.values().stream().filter((NodeConnector t) -> t.isAlive()).findAny().orElse(nodeConnector);
-        return nodeConnector;
+    public INodeFactory getNodeConnector() {
+        nodeConnector = nodeConnector.getProxy().isAlive() ? nodeConnector : map.values().stream().filter((NodeConnectorProxy t) -> t.getProxy().isAlive()).findAny().orElse(nodeConnector);
+        return nodeConnector.getProxy();
     }
     
     public Map<String, NodeDto> getNodes() throws IOException {
@@ -110,19 +111,19 @@ public class Cluster implements IDeadNodeListener, INodeConnectorRetriever{
      * @throws IOException 
      */
     @Override
-    public NodeConnector getNodeConnector(String hostName) throws IOException {
-        NodeConnector get = map.get(hostName);
-        NodeConnector connector = get == null ? new NodeConnector(hostName, port) : get;
+    public INodeFactory getNodeConnector(String hostName) throws IOException {
+        NodeConnectorProxy get = map.get(hostName);
+        NodeConnectorProxy connector = get == null ? new NodeConnectorProxy(hostName, port) : get;
         if (get == null) {
             addNodeConnector(connector);
         }
-        return connector;
+        return connector.getProxy();
     }
 
-    @Override
-    public Iterable<NodeConnector> iterable() {
-        return map.values();
-    }
+//    @Override
+//    public Iterable<INodeConnector> iterable() {
+//        return map.values();
+//    }
 
     @Override
     public void onNodeRemoved(String host) {

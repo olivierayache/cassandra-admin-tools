@@ -6,19 +6,19 @@
 package org.ayache.cassandra.repair.scheduler.model;
 
 import java.io.IOException;
-import org.ayache.cassandra.repair.scheduler.NodeConnector;
+import org.ayache.cassandra.admin.INodeConnector;
 
 /**
  *
  * @author Ayache
  */
-public interface INodeConnectorRetriever {
+public interface INodeConnectorRetriever<C extends INodeConnector> {
 
     /**
      *
      * @return
      */
-    NodeConnector getNodeConnector();
+    C getNodeConnector();
 
     /**
      *
@@ -26,11 +26,11 @@ public interface INodeConnectorRetriever {
      * @return
      * @throws IOException
      */
-    NodeConnector getNodeConnector(String hostName) throws IOException;
+    C getNodeConnector(String hostName) throws IOException;
 
-    /**
-     * 
-     * @return 
-     */
-    Iterable<NodeConnector> iterable();
+//    /**
+//     * 
+//     * @return 
+//     */
+//    Iterable<C> iterable();
 }

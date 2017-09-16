@@ -17,6 +17,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.PROPERTY)
 @GwtIncompatible
-public interface NodeInfoDto extends org.apache.cassandra.service.StorageServiceMBean{
+public interface NodeInfoDto {
 
 }

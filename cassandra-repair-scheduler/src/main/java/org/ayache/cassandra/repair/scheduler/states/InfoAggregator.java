@@ -5,7 +5,7 @@
  */
 package org.ayache.cassandra.repair.scheduler.states;
 
-import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.INodeReparator;
 
 /**
  *
@@ -13,7 +13,7 @@ import org.ayache.cassandra.repair.scheduler.NodeReparator;
  */
 public interface InfoAggregator {
     
-    InfoAggregator addStatus(NodeReparator.Status status);
+    InfoAggregator addStatus(INodeReparator.Status status);
     
     InfoAggregator addMessage(String message);
     
