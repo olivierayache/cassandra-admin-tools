@@ -7,6 +7,7 @@ package org.ayache.cassandra.repair.scheduler.states;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
@@ -45,6 +46,7 @@ public class RepairContext {
 
     private static final class SizedLinkedList<T> extends ConcurrentLinkedQueue<T> {
 
+        @Override
         public boolean add(T e) {
             if (size() > 200) {
                 poll();
@@ -145,12 +147,10 @@ public class RepairContext {
     }
 
     public void addNodeInError(String host) {
-        nodesToRepairInFailure.remove(host);
         nodesToRepairInError.add(host);
     }
 
     public void addNodeInUnknownError(String host) {
-        nodesToRepairInFailure.remove(host);
         nodesToRepairInUnknown.add(host);
     }
 

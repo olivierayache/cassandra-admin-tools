@@ -13,12 +13,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.cassandra.locator.EndpointSnitchInfoMBean;
 import org.ayache.cassandra.admin.api.dto.RepairConfigDto;
 import org.ayache.cassandra.repair.scheduler.INodeChooser;
 import org.ayache.cassandra.repair.scheduler.NodeChooser;
 import org.ayache.cassandra.repair.scheduler.NodeConnector;
 import org.ayache.cassandra.repair.scheduler.NodeReparator;
+import org.ayache.cassandra.repair.scheduler.jaxrs.ClusterServiceFactory;
 import org.ayache.cassandra.repair.scheduler.model.INodeConnectorRetriever;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -168,17 +171,21 @@ public class RepairContextTest {
         NodeReparator.Status status = NodeReparator.Status.JMX_UNKWOWN;
         String[] messages = null;
         RepairContext instance = new RepairContext("Test", 0, 0, 0);
-        RepairContext expResult = instance;
-        RepairContext result = instance.error(host, status, messages);
-        assertEquals(expResult, result);
+        RepairContext result = Mockito.spy(instance.error(host, status, messages));
+        try {
+            Mockito.doNothing().when(result).save();
+        } catch (IOException ex) {
+            Logger.getLogger(RepairContextTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
         assertEquals(new ErrorInfoAggregator(host, status, messages), instance.getNodesToRepairInFailure().iterator().next());
-        instance.addNodeInError(host);
-        assertTrue(!instance.getNodesToRepairInFailure().iterator().hasNext());
-        assertEquals(host, instance.getNodesInError().iterator().next());
-        instance.error(host, status, messages);
-        instance.addNodeInUnknownError(host);
+        new Failure(null).execute(result);
         assertTrue(!instance.getNodesToRepairInFailure().iterator().hasNext());
         assertEquals(host, instance.getNodesToRepairInUnknown().iterator().next());
+        status = NodeReparator.Status.SESSION_FAILED;
+        instance.error(host, status, messages);
+        new Failure(null).execute(result);
+        assertTrue(!instance.getNodesToRepairInFailure().iterator().hasNext());
+        assertEquals(host, instance.getNodesInError().iterator().next());
     }
 //
 //    /**
