@@ -286,7 +286,15 @@
                                         <prefix>/usr/lib/systemd/system</prefix>
                                     </mapper>
                                 </data>
-                                
+                                <data>
+                                    <src>${project.build.directory}/deb/init.d/service</src>
+                                    <type>file</type>
+                                    <dst>${artifactId}</dst>
+                                    <mapper>
+                                        <type>perm</type>
+                                        <prefix>/etc/init.d</prefix>
+                                    </mapper>
+                                </data>
                                 <data>
                                     <type>template</type>
                                     <paths>
