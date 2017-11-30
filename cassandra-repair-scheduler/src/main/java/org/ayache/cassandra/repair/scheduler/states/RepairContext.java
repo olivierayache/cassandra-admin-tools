@@ -7,7 +7,6 @@ package org.ayache.cassandra.repair.scheduler.states;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;

@@ -6,6 +6,7 @@
 package org.ayache.cassandra.repair.scheduler.states;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.ayache.automaton.api.IStateRetriever;
@@ -40,8 +41,9 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
         INodeReparator.Status status = p.status();
 
         //Retrieve nodes in failure
-        for (ErrorInfoAggregator aggregator : p.getNodesToRepairInFailure()) {
-
+        Iterator<ErrorInfoAggregator> iterator = p.getNodesToRepairInFailure().iterator();
+        while (iterator.hasNext()) {
+            ErrorInfoAggregator aggregator = iterator.next();
             switch (aggregator.getStatus()) {
                 //Repair will be automatically reschedule later
                 case SESSION_FAILED:
@@ -70,6 +72,7 @@ public class Failure extends State<RepairContext, Object, FailureInner> {
                 default:
                     p.addNodeInUnknownError(aggregator.getHost());
             }
+            iterator.remove();
         }
         
         try {
