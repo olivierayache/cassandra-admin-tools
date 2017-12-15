@@ -4,7 +4,7 @@ cache:
 language: java
 script: mvn clean install
 before_deploy:
-  - cd $TRAVIS_BUILD_DIR/cassandra-admin-scheduler/target
+  - cd $TRAVIS_BUILD_DIR/cassandra-repair-scheduler/target
   - export RELEASE_PKG_FILE=$(ls *.deb)
   - echo "deploying $RELEASE_PKG_FILE to GitHub releases"
 deploy:
