@@ -3,3 +3,11 @@ cache:
   - $HOME/.m2
 language: java
 script: mvn clean install
+deploy:
+  provider: releases
+  api_key: 
+    secure: HN4Wj7NYNL9GyVC64VSQj2W+a0EAhubAoUYoWQoy9msfNRVTrmBJVmYqnvz6MBiT+mQuY3hC79lS9Jc7/ecQgnhbHSvK8v7s67sq0NLk9HT0aEQNB5CVr97rJ0W2D2jqobkNdSNxLYOOGgf5VIaX4+yFa0vUjXTKu3lQSbarcb0933fOMN+9dNGF8VNSOAg5b7ccoM3Xz3wzW8Dwj03P9C1MDYsiDC0oSgYNbF9kebM9LCojhltfzk5W9mJs8FXhohRtizS2aeb+q4NB7Y+nQ7eAlEo2EmRGrBOHA5P2ij9mUp+TWrJbkpuWusw2nRO3DeaZcFj3fZ4d3b/mGzpLKdG5tbKE5/87dhl/exgS4nnTbxb30WD8yye4iit2KoGxySExoI2Q/lWlFzj6Cut/vz4Y3EScWXGdHeRutjs3kIoTgxy74JajNdup+7xAmW0jweOGsChWKcVkDnJSQrGPWbj6YoxsIDoSOsaPboJrjt5goybxJCFBLJvpc4QFHFKju80UI7wY2JhpNYseqliAPVMWrNXNHNv92K6thPrbNzNKWdRSHl5XJI8xE9ayBQtlySWDZXVk9qUYqOLyCkzKvWpP4sEyHpgt7Qh8nHs5qDQnrD1cAakdRA4lLk8X218s4lO5ko5tg77cckiPdmwEPQ/a5dE0+sdR8LMo/MnOQCI=
+  file: $TRAVIS_BUILD_DIR/cassandra-admin-scheduler/target/*.deb
+  skip_cleanup: true
+  on:
+    tags: true
