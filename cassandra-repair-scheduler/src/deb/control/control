@@ -6,4 +6,4 @@ Architecture: all
 Maintainer: Olivier Ayache
 Description: Cassandra administration tools
 Distribution: development
-Depends: default-jre (>= 1.8)
+Depends: default-jre (>= 1.8) | openjdk-8-jre-headless
