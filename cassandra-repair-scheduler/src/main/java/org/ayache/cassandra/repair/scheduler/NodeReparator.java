@@ -181,22 +181,7 @@ public class NodeReparator implements NotificationListener, INodeReparator {
                     } finally {
                         lock.unlock();
                     }
-
                 }
-            }
-        } else if (JMXConnectionNotification.NOTIFS_LOST.equals(notification.getType())) {
-            String message = String.format("[%s] %s Lost notification. You should check server log for repair status of keyspace %s",
-                    format.format(notification.getTimeStamp()), host,
-                    keyspace);
-            out.println(message);
-            success = false;
-            errorMessage = message;
-            finished = true;
-            lock.lock();
-            try {
-                condition.signalAll();
-            } finally {
-                lock.unlock();
             }
         } else if (JMXConnectionNotification.FAILED.equals(notification.getType())
                 || JMXConnectionNotification.CLOSED.equals(notification.getType())) {
