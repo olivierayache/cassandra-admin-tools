@@ -8,3 +8,7 @@ EnvironmentFile=/etc/default/${artifactId}
 Type=simple
 ExecStart=/usr/bin/java -Dcassandra.lib.directory=/usr/share/${artifactId}/cassandralibs/ ${EXTRA_JAVA_OPTS} -jar /usr/share/${artifactId}/${project.build.finalName}.jar -jh ${JAXRS_HOST} -jp ${JAXRS_PORT}
 Restart=on-failure
+SuccessExitStatus=143
+
+[Install]
+WantedBy=mutli-user.target

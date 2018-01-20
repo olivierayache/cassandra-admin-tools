@@ -24,6 +24,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -86,6 +88,13 @@ public class NewMain {
                 }
             }
         }
+        
+        Runtime.getRuntime().addShutdownHook(new Thread("ShutDownHook-Thread"){
+            @Override
+            public void run() {
+                server.stop();
+            }
+        });
     }
 
 }

@@ -35,11 +35,12 @@
             <artifactId>logback-core</artifactId>
             <version>1.2.3</version>
         </dependency>
--->                        <dependency>
+-->                        
+<!--        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.2.3</version>
-        </dependency>
+        </dependency>-->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>automaton-api</artifactId>
@@ -303,6 +304,7 @@
                                     <mapper>
                                         <type>perm</type>
                                         <prefix>/etc/init.d</prefix>
+                                        <filemode>755</filemode>
                                     </mapper>
                                 </data>
                                 <data>

@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ $(cat /proc/1/comm) = "init" ]
+then
+    invoke-rc.d cassandra-repair-scheduler stop
+elif [ $(cat /proc/1/comm) = "systemd" ]
+then
+    systemctl disable cassandra-repair-scheduler.service
+fi

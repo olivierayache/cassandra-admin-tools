@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ $(cat /proc/1/comm) = "init" ]
+then
+    update-rc.d cassandra-repair-scheduler defaults
+elif [ $(cat /proc/1/comm) = "systemd" ]
+then
+    systemctl enable cassandra-repair-scheduler.service
+fi
